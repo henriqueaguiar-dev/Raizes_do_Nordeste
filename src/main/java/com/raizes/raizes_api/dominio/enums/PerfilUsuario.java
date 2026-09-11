@@ -1,5 +1,10 @@
 package com.raizes.raizes_api.dominio.enums;
 
 public enum PerfilUsuario {
+    ClIENTE,
+    ATENDENTE,
+    COZINHA,
+    GERENTE,
+    ADMIN
 
 }
