@@ -5,10 +5,14 @@ import java.util.UUID;
 import com.raizes.raizes_api.dominio.enums.PerfilUsuario;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
+@Entity 
+@Table(name = "usuarios")
 public class UsuarioEntidade {
 
     @Id 
