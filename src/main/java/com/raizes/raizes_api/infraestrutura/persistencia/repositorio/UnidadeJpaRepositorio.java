@@ -1,5 +1,11 @@
 package com.raizes.raizes_api.infraestrutura.persistencia.repositorio;
 
-public interface UnidadeJpaRepositorio {
+import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.raizes.raizes_api.dominio.modelo.Unidade;
+
+public interface UnidadeJpaRepositorio extends JpaRepository<Unidade, UUID> {
 
 }
