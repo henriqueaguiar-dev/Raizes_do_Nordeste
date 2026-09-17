@@ -26,7 +26,7 @@ public class UnidadeEntidade {
     protected UnidadeEntidade() {
     }
 
-    protected UnidadeEntidade(UUID id, String nome, String endereco, Boolean ativa) {
+    public UnidadeEntidade(UUID id, String nome, String endereco, Boolean ativa) {
         this.id = id;
         this.nome = nome;
         this.endereco = endereco;
@@ -45,7 +45,7 @@ public class UnidadeEntidade {
         return endereco;
     }
 
-    public Boolean getAtiva() {
+    public Boolean isAtiva() {
         return ativa;
     }
 
