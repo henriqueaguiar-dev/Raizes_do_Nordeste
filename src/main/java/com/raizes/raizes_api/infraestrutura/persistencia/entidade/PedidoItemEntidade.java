@@ -37,9 +37,8 @@ public class PedidoItemEntidade {
     protected PedidoItemEntidade() {
     }
 
-    public PedidoItemEntidade(UUID id, PedidoEntidade pedido, UUID produtoId, Integer quantidade, BigDecimal precoUnitario, BigDecimal subtotal) {
+    public PedidoItemEntidade(UUID id, UUID produtoId, Integer quantidade, BigDecimal precoUnitario, BigDecimal subtotal) {
         this.id = id;
-        this.pedido = pedido;
         this.produtoId = produtoId;
         this.quantidade = quantidade;
         this.precoUnitario = precoUnitario;

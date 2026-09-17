@@ -21,6 +21,7 @@ public class PedidoItem {
         this.precoUnitario = precoUnitario;
         this.subTotal = subTotal;
     }
+    
 
     public UUID getId() {
         return id;
