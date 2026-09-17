@@ -1,5 +1,6 @@
 package com.raizes.raizes_api.infraestrutura.persistencia.entidade;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import com.raizes.raizes_api.dominio.enums.PerfilUsuario;
@@ -38,12 +39,12 @@ public class UsuarioEntidade {
     private boolean consentimentoLgpd;
 
     @Column (name = "criado_em", nullable = false)
-    private long criadoEm;
+    private OffsetDateTime criadoEm;
 
     protected UsuarioEntidade() {
     }
 
-    protected UsuarioEntidade(UUID id, String nome, String email, String senhaHash, PerfilUsuario perfil, boolean ativo, boolean consentimentoLgpd, long criadoEm) {
+    public UsuarioEntidade(UUID id, String nome, String email, String senhaHash, PerfilUsuario perfil, boolean ativo, boolean consentimentoLgpd, OffsetDateTime criadoEm) {
         this.id = id;
         this.nome = nome;
         this.email = email;
@@ -82,7 +83,7 @@ public class UsuarioEntidade {
         return consentimentoLgpd;
     }
 
-    public long getCriadoEm() {
+    public OffsetDateTime getCriadoEm() {
         return criadoEm;
     }
 }
