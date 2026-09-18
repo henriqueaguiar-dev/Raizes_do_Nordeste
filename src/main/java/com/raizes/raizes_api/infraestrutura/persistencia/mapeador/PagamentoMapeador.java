@@ -15,10 +15,7 @@ public class PagamentoMapeador {
                 entidade.getId(),
                 entidade.getPedidoId(),
                 entidade.getMetodo(),
-                entidade.getValor(),
-                entidade.getCodigoTransacaoMock(),
-                entidade.getRespostaMock(),
-                entidade.getCriadoEm()
+                entidade.getValor()
         );
 
         switch (entidade.getStatus()) {
@@ -39,6 +36,7 @@ public class PagamentoMapeador {
                 pagamento.getMetodo(),
                 pagamento.getValor(),
                 pagamento.getCodigoTransacaoMock(),
+                null,
                 OffsetDateTime.now()
         );
     }
