@@ -3,6 +3,7 @@ package com.raizes.raizes_api.dominio.modelo;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import com.raizes.raizes_api.dominio.enums.MetodoPagamento;
 import com.raizes.raizes_api.dominio.enums.StatusPagamento;
 
 public class Pagamento {
@@ -10,14 +11,14 @@ public class Pagamento {
     private UUID id;
     private UUID pedidoId;
     private StatusPagamento status;
-    private MedodePagamento metodo;
+    private MetodoPagamento metodo;
     private BigDecimal valor;
     private String codigoTransacaoMock;
 
     public Pagamento(){
     }
 
-    public Pagamento(UUID id, UUID pedidoId, MedodePagamento metodo, BigDecimal valor) {
+    public Pagamento(UUID id, UUID pedidoId, MetodoPagamento metodo, BigDecimal valor) {
         this.id = id;
         this.pedidoId = pedidoId;
         this.metodo = metodo;
@@ -47,7 +48,7 @@ public class Pagamento {
         return status;
     }
 
-    public MedodePagamento getMetodo() {
+    public MetodoPagamento getMetodo() {
         return metodo;
     }
 
