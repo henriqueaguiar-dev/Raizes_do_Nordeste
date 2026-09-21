@@ -74,4 +74,19 @@ public class ProdutoServico {
                 produto.isAtivo()
         );
     }
+
+    public void desativar(UUID id) {
+    ProdutoEntidade produto = produtoRepositorio.findById(id)
+            .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Produto nao encontrado."));
+
+    ProdutoEntidade produtoDesativado = new ProdutoEntidade(
+            produto.getId(),
+            produto.getNome(),
+            produto.getDescricao(),
+            produto.getPreco(),
+            false
+    );
+
+    produtoRepositorio.save(produtoDesativado);
+}
 }

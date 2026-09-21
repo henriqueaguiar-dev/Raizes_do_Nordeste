@@ -44,4 +44,10 @@ public class ProdutoControlador {
     ) {
         return produtoServico.atualizar(id, requisicao);
     }
+    
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void desativar(@PathVariable UUID id) {
+        produtoServico.desativar(id);
+    }
 }
