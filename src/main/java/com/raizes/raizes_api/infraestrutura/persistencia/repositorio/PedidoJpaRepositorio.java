@@ -13,7 +13,7 @@ public interface PedidoJpaRepositorio extends JpaRepository<PedidoEntidade, UUID
 
     List<PedidoEntidade> findByClienteId(UUID clienteId);
 
-    List<PedidoEntidade> FindByCanlPedido(CanalPedido canalPedido);
+    List<PedidoEntidade> findByCanalPedido(CanalPedido canalPedido);
 
     List<PedidoEntidade> findByStatus(StatusPedido statusPedido);
 
