@@ -1,0 +1,23 @@
+package com.raizes.raizes_api.api.dto.requisicao;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public class CriarUnidadeRequisicao {
+
+    @NotBlank(message = "O nome da unidade e obrigatorio.")
+    @Size(max = 120, message = "O nome deve ter no maximo 120 caracteres.")
+    private String nome;
+
+    @NotBlank(message = "O endereco da unidade e obrigatorio.")
+    @Size(max = 255, message = "O endereco deve ter no maximo 255 caracteres.")
+    private String endereco;
+
+    public String getNome() {
+        return nome;
+    }
+
+    public String getEndereco() {
+        return endereco;
+    }
+}
