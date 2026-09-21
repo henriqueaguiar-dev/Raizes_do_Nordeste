@@ -1,5 +1,6 @@
 package com.raizes.raizes_api.infraestrutura.persistencia.repositorio;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -9,5 +10,7 @@ import com.raizes.raizes_api.infraestrutura.persistencia.entidade.EstoqueEntidad
 
 public interface EstoqueJpaRepositorio extends JpaRepository<EstoqueEntidade, UUID> {
 
-    Optional<EstoqueEntidade> findByProdutoId(UUID unidadeId, UUID produtoId);
+    Optional<EstoqueEntidade> findByUnidadeIdAndProdutoId(UUID unidadeId, UUID produtoId);
+
+    List<EstoqueEntidade> findByUnidadeId(UUID unidadeId);;
 }

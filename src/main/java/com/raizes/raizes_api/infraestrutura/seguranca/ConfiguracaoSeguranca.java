@@ -16,6 +16,7 @@ public class ConfiguracaoSeguranca {
                         .requestMatchers(
                                 "/produtos/**",
                                 "/unidades/**",
+                                "/estoques/**",
                                 "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()
