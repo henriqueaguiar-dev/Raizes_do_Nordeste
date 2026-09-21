@@ -15,6 +15,7 @@ public class ConfiguracaoSeguranca {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/produtos/**",
+                                "/unidades/**",
                                 "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()
