@@ -17,6 +17,7 @@ public class ConfiguracaoSeguranca {
                                 "/produtos/**",
                                 "/unidades/**",
                                 "/estoques/**",
+                                "/pedidos/**",
                                 "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()
