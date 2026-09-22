@@ -9,6 +9,7 @@ import com.raizes.raizes_api.dominio.enums.StatusPedido;
 import com.raizes.raizes_api.dominio.excecao.EstoqueInsuficienteExcecao;
 import com.raizes.raizes_api.dominio.excecao.RecursoNaoEncontradoExcecao;
 import com.raizes.raizes_api.dominio.excecao.RegraDeNegocioExcecao;
+import com.raizes.raizes_api.dominio.excecao.StatusPedidoInvalidoExcecao;
 import com.raizes.raizes_api.infraestrutura.persistencia.entidade.EstoqueEntidade;
 import com.raizes.raizes_api.infraestrutura.persistencia.entidade.PedidoEntidade;
 import com.raizes.raizes_api.infraestrutura.persistencia.entidade.PedidoItemEntidade;
@@ -35,9 +36,9 @@ public class PedidoServico {
     private final EstoqueJpaRepositorio estoqueRepositorio;
 
     public PedidoServico(PedidoJpaRepositorio pedidoRepositorio,
-                         UnidadeJpaRepositorio unidadeRepositorio,
-                         ProdutoJpaRepositorio produtoRepositorio,
-                         EstoqueJpaRepositorio estoqueRepositorio) {
+            UnidadeJpaRepositorio unidadeRepositorio,
+            ProdutoJpaRepositorio produtoRepositorio,
+            EstoqueJpaRepositorio estoqueRepositorio) {
         this.pedidoRepositorio = pedidoRepositorio;
         this.unidadeRepositorio = unidadeRepositorio;
         this.produtoRepositorio = produtoRepositorio;
@@ -64,7 +65,8 @@ public class PedidoServico {
 
             EstoqueEntidade estoque = estoqueRepositorio
                     .findByUnidadeIdAndProdutoId(requisicao.getUnidadeId(), itemRequisicao.getProdutoId())
-                    .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Estoque nao encontrado para o produto informado."));
+                    .orElseThrow(
+                            () -> new RecursoNaoEncontradoExcecao("Estoque nao encontrado para o produto informado."));
 
             if (estoque.getQuantidadeDisponivel() < itemRequisicao.getQuantidade()) {
                 throw new EstoqueInsuficienteExcecao("Estoque insuficiente para o produto informado.");
@@ -74,8 +76,7 @@ public class PedidoServico {
                     estoque.getId(),
                     estoque.getUnidadeId(),
                     estoque.getProdutoId(),
-                    estoque.getQuantidadeDisponivel() - itemRequisicao.getQuantidade()
-            );
+                    estoque.getQuantidadeDisponivel() - itemRequisicao.getQuantidade());
 
             estoqueRepositorio.save(estoqueAtualizado);
 
@@ -87,8 +88,7 @@ public class PedidoServico {
                     produto.getId(),
                     itemRequisicao.getQuantidade(),
                     produto.getPreco(),
-                    subtotal
-            );
+                    subtotal);
 
             itens.add(item);
         }
@@ -103,8 +103,7 @@ public class PedidoServico {
                 StatusPedido.AGUARDANDO_PAGAMENTO,
                 total,
                 agora,
-                agora
-        );
+                agora);
 
         itens.forEach(pedido::adicionarItem);
 
@@ -145,8 +144,7 @@ public class PedidoServico {
                         item.getProdutoId(),
                         item.getQuantidade(),
                         item.getPrecoUnitario(),
-                        item.getSubtotal()
-                ))
+                        item.getSubtotal()))
                 .toList();
 
         return new PedidoResposta(
@@ -156,7 +154,59 @@ public class PedidoServico {
                 pedido.getCanalPedido(),
                 pedido.getStatus(),
                 pedido.getTotal(),
-                itens
-        );
+                itens);
+    }
+
+    @Transactional
+    public PedidoResposta atualizarStatus(UUID id, StatusPedido novoStatus) {
+        PedidoEntidade pedido = pedidoRepositorio.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
+
+        validarMudancaStatus(pedido.getStatus(), novoStatus);
+
+        PedidoEntidade pedidoAtualizado = new PedidoEntidade(
+                pedido.getId(),
+                pedido.getClienteId(),
+                pedido.getUnidadeId(),
+                pedido.getCanalPedido(),
+                novoStatus,
+                pedido.getTotal(),
+                pedido.getCriadoEm(),
+                OffsetDateTime.now());
+
+        pedido.getItens().forEach(pedidoAtualizado::adicionarItem);
+
+        PedidoEntidade pedidoSalvo = pedidoRepositorio.save(pedidoAtualizado);
+
+        return paraResposta(pedidoSalvo);
+    }
+
+    private void validarMudancaStatus(StatusPedido statusAtual, StatusPedido novoStatus) {
+        if (statusAtual == StatusPedido.CANCELADO || statusAtual == StatusPedido.ENTREGUE) {
+            throw new StatusPedidoInvalidoExcecao("Pedido finalizado nao pode mudar de status.");
+        }
+
+        if (novoStatus == StatusPedido.AGUARDANDO_PAGAMENTO) {
+            throw new StatusPedidoInvalidoExcecao("Nao e permitido voltar para aguardando pagamento.");
+        }
+
+        if (statusAtual == StatusPedido.AGUARDANDO_PAGAMENTO && novoStatus != StatusPedido.CANCELADO) {
+            throw new StatusPedidoInvalidoExcecao("Pedido aguardando pagamento so pode ser cancelado.");
+        }
+
+        if (statusAtual == StatusPedido.PAGO && novoStatus != StatusPedido.EM_PREPARO
+                && novoStatus != StatusPedido.CANCELADO) {
+            throw new StatusPedidoInvalidoExcecao("Pedido pago deve ir para preparo ou ser cancelado.");
+        }
+
+        if (statusAtual == StatusPedido.EM_PREPARO && novoStatus != StatusPedido.PRONTO
+                && novoStatus != StatusPedido.CANCELADO) {
+            throw new StatusPedidoInvalidoExcecao("Pedido em preparo deve ir para pronto ou ser cancelado.");
+        }
+
+        if (statusAtual == StatusPedido.PRONTO && novoStatus != StatusPedido.ENTREGUE
+                && novoStatus != StatusPedido.CANCELADO) {
+            throw new StatusPedidoInvalidoExcecao("Pedido pronto deve ser entregue ou cancelado.");
+        }
     }
 }

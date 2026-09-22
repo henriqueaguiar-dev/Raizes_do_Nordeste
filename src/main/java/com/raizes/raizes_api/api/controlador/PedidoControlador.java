@@ -1,5 +1,6 @@
 package com.raizes.raizes_api.api.controlador;
 
+import com.raizes.raizes_api.api.dto.requisicao.AtualizarStatusPedidoRequisicao;
 import com.raizes.raizes_api.api.dto.requisicao.CriarPedidoRequisicao;
 import com.raizes.raizes_api.api.dto.resposta.PedidoResposta;
 import com.raizes.raizes_api.aplicacao.servico.PedidoServico;
@@ -31,13 +32,19 @@ public class PedidoControlador {
     @GetMapping
     public List<PedidoResposta> listar(
             @RequestParam(required = false) CanalPedido canalPedido,
-            @RequestParam(required = false) StatusPedido status
-    ) {
+            @RequestParam(required = false) StatusPedido status) {
         return pedidoServico.listar(canalPedido, status);
     }
 
     @GetMapping("/{id}")
     public PedidoResposta buscarPorId(@PathVariable UUID id) {
         return pedidoServico.buscarPorId(id);
+    }
+
+    @PatchMapping("/{id}/status")
+    public PedidoResposta atualizarStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody AtualizarStatusPedidoRequisicao requisicao) {
+        return pedidoServico.atualizarStatus(id, requisicao.getStatus());
     }
 }
