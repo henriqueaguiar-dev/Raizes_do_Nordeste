@@ -21,11 +21,14 @@ public class PagamentoServico {
 
     private final PagamentoJpaRepositorio pagamentoRepositorio;
     private final PedidoJpaRepositorio pedidoRepositorio;
+    private final AuditoriaServico auditoriaServico;
 
     public PagamentoServico(PagamentoJpaRepositorio pagamentoRepositorio,
-                            PedidoJpaRepositorio pedidoRepositorio) {
+            PedidoJpaRepositorio pedidoRepositorio,
+            AuditoriaServico auditoriaServico) {
         this.pagamentoRepositorio = pagamentoRepositorio;
         this.pedidoRepositorio = pedidoRepositorio;
+        this.auditoriaServico = auditoriaServico;
     }
 
     @Transactional
@@ -61,10 +64,16 @@ public class PagamentoServico {
                 pedido.getTotal(),
                 codigoTransacao,
                 respostaMock,
-                OffsetDateTime.now()
-        );
+                OffsetDateTime.now());
 
         PagamentoEntidade pagamentoSalvo = pagamentoRepositorio.save(pagamento);
+
+        auditoriaServico.registrar(
+                pedido.getClienteId(),
+                "PROCESSAR_PAGAMENTO",
+                "Pagamento",
+                pagamentoSalvo.getId(),
+                "Pagamento mock com status " + pagamentoSalvo.getStatus());
 
         if (aprovado) {
             PedidoEntidade pedidoPago = new PedidoEntidade(
@@ -75,8 +84,7 @@ public class PagamentoServico {
                     StatusPedido.PAGO,
                     pedido.getTotal(),
                     pedido.getCriadoEm(),
-                    OffsetDateTime.now()
-            );
+                    OffsetDateTime.now());
 
             pedido.getItens().forEach(pedidoPago::adicionarItem);
 
@@ -101,7 +109,6 @@ public class PagamentoServico {
                 pagamento.getMetodo(),
                 pagamento.getValor(),
                 pagamento.getCodigoTransacaoMock(),
-                pagamento.getRespostaMock()
-        );
+                pagamento.getRespostaMock());
     }
 }

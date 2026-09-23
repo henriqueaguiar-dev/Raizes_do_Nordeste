@@ -34,15 +34,18 @@ public class PedidoServico {
     private final UnidadeJpaRepositorio unidadeRepositorio;
     private final ProdutoJpaRepositorio produtoRepositorio;
     private final EstoqueJpaRepositorio estoqueRepositorio;
+    private final AuditoriaServico auditoriaServico;
 
     public PedidoServico(PedidoJpaRepositorio pedidoRepositorio,
             UnidadeJpaRepositorio unidadeRepositorio,
             ProdutoJpaRepositorio produtoRepositorio,
-            EstoqueJpaRepositorio estoqueRepositorio) {
+            EstoqueJpaRepositorio estoqueRepositorio,
+            AuditoriaServico auditoriaServico) {
         this.pedidoRepositorio = pedidoRepositorio;
         this.unidadeRepositorio = unidadeRepositorio;
         this.produtoRepositorio = produtoRepositorio;
         this.estoqueRepositorio = estoqueRepositorio;
+        this.auditoriaServico = auditoriaServico;
     }
 
     @Transactional
@@ -108,6 +111,13 @@ public class PedidoServico {
         itens.forEach(pedido::adicionarItem);
 
         PedidoEntidade pedidoSalvo = pedidoRepositorio.save(pedido);
+
+        auditoriaServico.registrar(
+                requisicao.getClienteId(),
+                "CRIAR_PEDIDO",
+                "Pedido",
+                pedidoSalvo.getId(),
+                "Pedido criado pelo canal " + pedidoSalvo.getCanalPedido());
 
         return paraResposta(pedidoSalvo);
     }
@@ -177,6 +187,13 @@ public class PedidoServico {
         pedido.getItens().forEach(pedidoAtualizado::adicionarItem);
 
         PedidoEntidade pedidoSalvo = pedidoRepositorio.save(pedidoAtualizado);
+
+        auditoriaServico.registrar(
+                pedidoSalvo.getClienteId(),
+                "ATUALIZAR_STATUS_PEDIDO",
+                "Pedido",
+                pedidoSalvo.getId(),
+                "Status alterado para " + pedidoSalvo.getStatus());
 
         return paraResposta(pedidoSalvo);
     }
