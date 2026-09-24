@@ -10,14 +10,19 @@ public class LoginResposta {
     private String nome;
     private String email;
     private PerfilUsuario perfil;
-    private String mensagem;
+    private String accessToken;
+    private String tokenType;
+    private Long expiresIn;
 
-    public LoginResposta(UUID usuarioId, String nome, String email, PerfilUsuario perfil, String mensagem) {
+    public LoginResposta(UUID usuarioId, String nome, String email, PerfilUsuario perfil,
+                         String accessToken, String tokenType, Long expiresIn) {
         this.usuarioId = usuarioId;
         this.nome = nome;
         this.email = email;
         this.perfil = perfil;
-        this.mensagem = mensagem;
+        this.accessToken = accessToken;
+        this.tokenType = tokenType;
+        this.expiresIn = expiresIn;
     }
 
     public UUID getUsuarioId() {
@@ -36,7 +41,15 @@ public class LoginResposta {
         return perfil;
     }
 
-    public String getMensagem() {
-        return mensagem;
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public String getTokenType() {
+        return tokenType;
+    }
+
+    public Long getExpiresIn() {
+        return expiresIn;
     }
 }
