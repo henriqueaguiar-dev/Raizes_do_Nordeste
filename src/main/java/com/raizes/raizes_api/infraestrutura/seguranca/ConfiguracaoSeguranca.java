@@ -21,6 +21,7 @@ public class ConfiguracaoSeguranca {
                                 "/pagamentos/**",
                                 "/produtos/**",
                                 "/usuarios/**",
+                                "/auth/**",
                                 "/h2-console/**"
                         ).permitAll()
                         .anyRequest().authenticated()
