@@ -6,6 +6,7 @@ import com.raizes.raizes_api.api.dto.resposta.PedidoItemResposta;
 import com.raizes.raizes_api.api.dto.resposta.PedidoResposta;
 import com.raizes.raizes_api.dominio.enums.CanalPedido;
 import com.raizes.raizes_api.dominio.enums.StatusPedido;
+import com.raizes.raizes_api.dominio.excecao.AcessoNegadoExcecao;
 import com.raizes.raizes_api.dominio.excecao.EstoqueInsuficienteExcecao;
 import com.raizes.raizes_api.dominio.excecao.RecursoNaoEncontradoExcecao;
 import com.raizes.raizes_api.dominio.excecao.RegraDeNegocioExcecao;
@@ -122,9 +123,22 @@ public class PedidoServico {
         return paraResposta(pedidoSalvo);
     }
 
-    public List<PedidoResposta> listar(CanalPedido canalPedido, StatusPedido status) {
-        List<PedidoEntidade> pedidos;
+    public List<PedidoResposta> listar(UUID usuarioId, String perfil, CanalPedido canalPedido, StatusPedido status) {
+    boolean cliente = "CLIENTE".equals(perfil);
 
+    List<PedidoEntidade> pedidos;
+
+    if (cliente) {
+        if (canalPedido != null && status != null) {
+            pedidos = pedidoRepositorio.findByClienteIdAndCanalPedidoAndStatus(usuarioId, canalPedido, status);
+        } else if (canalPedido != null) {
+            pedidos = pedidoRepositorio.findByClienteIdAndCanalPedido(usuarioId, canalPedido);
+        } else if (status != null) {
+            pedidos = pedidoRepositorio.findByClienteIdAndStatus(usuarioId, status);
+        } else {
+            pedidos = pedidoRepositorio.findByClienteId(usuarioId);
+        }
+    } else {
         if (canalPedido != null && status != null) {
             pedidos = pedidoRepositorio.findByCanalPedidoAndStatus(canalPedido, status);
         } else if (canalPedido != null) {
@@ -134,18 +148,25 @@ public class PedidoServico {
         } else {
             pedidos = pedidoRepositorio.findAll();
         }
-
-        return pedidos.stream()
-                .map(this::paraResposta)
-                .toList();
     }
 
-    public PedidoResposta buscarPorId(UUID id) {
-        PedidoEntidade pedido = pedidoRepositorio.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
+    return pedidos.stream()
+            .map(this::paraResposta)
+            .toList();
+}
 
-        return paraResposta(pedido);
+    public PedidoResposta buscarPorId(UUID id, UUID usuarioId, String perfil) {
+    PedidoEntidade pedido = pedidoRepositorio.findById(id)
+            .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
+
+    boolean cliente = "CLIENTE".equals(perfil);
+
+    if (cliente && !pedido.getClienteId().equals(usuarioId)) {
+        throw new AcessoNegadoExcecao("Voce nao tem permissao para acessar este pedido.");
     }
+
+    return paraResposta(pedido);
+}
 
     private PedidoResposta paraResposta(PedidoEntidade pedido) {
         List<PedidoItemResposta> itens = pedido.getItens()

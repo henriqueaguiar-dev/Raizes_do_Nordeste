@@ -38,13 +38,23 @@ public class PedidoControlador {
     @GetMapping
     public List<PedidoResposta> listar(
             @RequestParam(required = false) CanalPedido canalPedido,
-            @RequestParam(required = false) StatusPedido status) {
-        return pedidoServico.listar(canalPedido, status);
+            @RequestParam(required = false) StatusPedido status,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID usuarioId = UUID.fromString(jwt.getSubject());
+        String perfil = jwt.getClaimAsString("perfil");
+
+        return pedidoServico.listar(usuarioId, perfil, canalPedido, status);
     }
 
+
     @GetMapping("/{id}")
-    public PedidoResposta buscarPorId(@PathVariable UUID id) {
-        return pedidoServico.buscarPorId(id);
+    public PedidoResposta buscarPorId(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID usuarioId = UUID.fromString(jwt.getSubject());
+        String perfil = jwt.getClaimAsString("perfil");
+
+        return pedidoServico.buscarPorId(id, usuarioId, perfil);
     }
 
     @PatchMapping("/{id}/status")
