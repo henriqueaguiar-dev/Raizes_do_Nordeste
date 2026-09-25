@@ -7,7 +7,10 @@ import com.raizes.raizes_api.aplicacao.servico.PedidoServico;
 import com.raizes.raizes_api.dominio.enums.CanalPedido;
 import com.raizes.raizes_api.dominio.enums.StatusPedido;
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,8 +28,11 @@ public class PedidoControlador {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PedidoResposta criar(@Valid @RequestBody CriarPedidoRequisicao requisicao) {
-        return pedidoServico.criar(requisicao);
+    public PedidoResposta criar(
+            @Valid @RequestBody CriarPedidoRequisicao requisicao,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID clienteId = UUID.fromString(jwt.getSubject());
+        return pedidoServico.criar(clienteId, requisicao);
     }
 
     @GetMapping

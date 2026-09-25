@@ -49,7 +49,7 @@ public class PedidoServico {
     }
 
     @Transactional
-    public PedidoResposta criar(CriarPedidoRequisicao requisicao) {
+    public PedidoResposta criar(UUID clienteId, CriarPedidoRequisicao requisicao) {
         if (!unidadeRepositorio.existsById(requisicao.getUnidadeId())) {
             throw new RecursoNaoEncontradoExcecao("Unidade nao encontrada.");
         }
@@ -100,7 +100,7 @@ public class PedidoServico {
 
         PedidoEntidade pedido = new PedidoEntidade(
                 pedidoId,
-                requisicao.getClienteId(),
+                clienteId,
                 requisicao.getUnidadeId(),
                 requisicao.getCanalPedido(),
                 StatusPedido.AGUARDANDO_PAGAMENTO,
@@ -113,7 +113,7 @@ public class PedidoServico {
         PedidoEntidade pedidoSalvo = pedidoRepositorio.save(pedido);
 
         auditoriaServico.registrar(
-                requisicao.getClienteId(),
+                clienteId,
                 "CRIAR_PEDIDO",
                 "Pedido",
                 pedidoSalvo.getId(),

@@ -11,8 +11,6 @@ import java.util.UUID;
 
 public class CriarPedidoRequisicao {
 
-    @NotNull(message = "O cliente e obrigatorio.")
-    private UUID clienteId;
 
     @NotNull(message = "A unidade e obrigatoria.")
     private UUID unidadeId;
@@ -27,9 +25,6 @@ public class CriarPedidoRequisicao {
     @NotEmpty(message = "O pedido deve ter pelo menos um item.")
     private List<CriarPedidoItemRequisicao> itens;
 
-    public UUID getClienteId() {
-        return clienteId;
-    }
 
     public UUID getUnidadeId() {
         return unidadeId;
