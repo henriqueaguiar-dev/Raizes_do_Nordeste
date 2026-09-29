@@ -1,5 +1,6 @@
 package com.raizes.raizes_api.api.controlador;
 
+import com.raizes.raizes_api.api.dto.requisicao.CadastrarUsuarioInternoRequisicao;
 import com.raizes.raizes_api.api.dto.requisicao.CadastrarUsuarioRequisicao;
 import com.raizes.raizes_api.api.dto.resposta.UsuarioResposta;
 import com.raizes.raizes_api.aplicacao.servico.UsuarioServico;
@@ -21,5 +22,11 @@ public class UsuarioControlador {
     @ResponseStatus(HttpStatus.CREATED)
     public UsuarioResposta cadastrar(@Valid @RequestBody CadastrarUsuarioRequisicao requisicao) {
         return usuarioServico.cadastrar(requisicao);
+    }
+
+    @PostMapping("/internos")
+    @ResponseStatus(HttpStatus.CREATED)
+    public UsuarioResposta cadastrarInterno(@Valid @RequestBody CadastrarUsuarioInternoRequisicao requisicao) {
+        return usuarioServico.cadastrarInterno(requisicao);
     }
 }

@@ -1,7 +1,9 @@
 package com.raizes.raizes_api.aplicacao.servico;
 
+import com.raizes.raizes_api.api.dto.requisicao.CadastrarUsuarioInternoRequisicao;
 import com.raizes.raizes_api.api.dto.requisicao.CadastrarUsuarioRequisicao;
 import com.raizes.raizes_api.api.dto.resposta.UsuarioResposta;
+import com.raizes.raizes_api.dominio.enums.PerfilUsuario;
 import com.raizes.raizes_api.dominio.excecao.RegraDeNegocioExcecao;
 import com.raizes.raizes_api.infraestrutura.persistencia.entidade.UsuarioEntidade;
 import com.raizes.raizes_api.infraestrutura.persistencia.repositorio.UsuarioJpaRepositorio;
@@ -34,11 +36,36 @@ public class UsuarioServico {
                 requisicao.getNome(),
                 requisicao.getEmail(),
                 senhaHash,
+                PerfilUsuario.CLIENTE,
+                true,
+                requisicao.getConsentimentoLgpd(),
+                OffsetDateTime.now());
+
+        UsuarioEntidade usuarioSalvo = usuarioRepositorio.save(usuario);
+
+        return paraResposta(usuarioSalvo);
+    }
+
+    public UsuarioResposta cadastrarInterno(CadastrarUsuarioInternoRequisicao requisicao) {
+        if (usuarioRepositorio.existsByEmail(requisicao.getEmail())) {
+            throw new RegraDeNegocioExcecao("Email ja cadastrado.");
+        }
+
+        if (requisicao.getPerfil() == PerfilUsuario.CLIENTE) {
+            throw new RegraDeNegocioExcecao("Use o cadastro publico para criar usuarios clientes.");
+        }
+
+        String senhaHash = passwordEncoder.encode(requisicao.getSenha());
+
+        UsuarioEntidade usuario = new UsuarioEntidade(
+                UUID.randomUUID(),
+                requisicao.getNome(),
+                requisicao.getEmail(),
+                senhaHash,
                 requisicao.getPerfil(),
                 true,
                 requisicao.getConsentimentoLgpd(),
-                OffsetDateTime.now()
-        );
+                OffsetDateTime.now());
 
         UsuarioEntidade usuarioSalvo = usuarioRepositorio.save(usuario);
 
@@ -52,7 +79,6 @@ public class UsuarioServico {
                 usuario.getEmail(),
                 usuario.getPerfil(),
                 usuario.isAtivo(),
-                usuario.isConsentimentoLgpd()
-        );
+                usuario.isConsentimentoLgpd());
     }
 }
