@@ -99,6 +99,24 @@ public class UsuarioServico {
         return paraResposta(usuarioRepositorio.save(usuarioAtualizado));
     }
 
+    @Transactional
+    public void desativar(UUID id) {
+        UsuarioEntidade usuarioAtual = usuarioRepositorio.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Usuario nao encontrado."));
+
+        UsuarioEntidade usuarioDesativado = new UsuarioEntidade(
+                usuarioAtual.getId(),
+                usuarioAtual.getNome(),
+                usuarioAtual.getEmail(),
+                usuarioAtual.getSenhaHash(),
+                usuarioAtual.getPerfil(),
+                false,
+                usuarioAtual.isConsentimentoLgpd(),
+                usuarioAtual.getCriadoEm());
+
+        usuarioRepositorio.save(usuarioDesativado);
+    }
+
     private UsuarioResposta paraResposta(UsuarioEntidade usuario) {
         return new UsuarioResposta(
                 usuario.getId(),
