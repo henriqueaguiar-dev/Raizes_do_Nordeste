@@ -20,6 +20,7 @@ public class ConfiguracaoSeguranca {
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers("/h2-console/**").permitAll()
                                                 .requestMatchers("/auth/**").permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/usuarios").hasRole("ADMIN")
                                                 .requestMatchers(HttpMethod.POST, "/usuarios/internos").hasRole("ADMIN")
                                                 .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
 

@@ -8,6 +8,7 @@ import com.raizes.raizes_api.aplicacao.servico.UsuarioServico;
 import com.raizes.raizes_api.dominio.excecao.AcessoNegadoExcecao;
 import jakarta.validation.Valid;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,11 @@ public class UsuarioControlador {
     @ResponseStatus(HttpStatus.CREATED)
     public UsuarioResposta cadastrar(@Valid @RequestBody CadastrarUsuarioRequisicao requisicao) {
         return usuarioServico.cadastrar(requisicao);
+    }
+
+    @GetMapping
+    public List<UsuarioResposta> listar() {
+        return usuarioServico.listar();
     }
 
     @PutMapping("/{id}")

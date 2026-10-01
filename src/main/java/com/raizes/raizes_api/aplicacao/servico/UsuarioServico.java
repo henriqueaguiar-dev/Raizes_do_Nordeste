@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -115,6 +116,13 @@ public class UsuarioServico {
                 usuarioAtual.getCriadoEm());
 
         usuarioRepositorio.save(usuarioDesativado);
+    }
+
+    public List<UsuarioResposta> listar() {
+        return usuarioRepositorio.findAll()
+                .stream()
+                .map(this::paraResposta)
+                .toList();
     }
 
     private UsuarioResposta paraResposta(UsuarioEntidade usuario) {
