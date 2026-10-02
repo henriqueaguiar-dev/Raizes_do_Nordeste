@@ -1,5 +1,7 @@
 package com.raizes.raizes_api.api.dto.requisicao;
 
+import java.util.UUID;
+
 import com.raizes.raizes_api.dominio.enums.PerfilUsuario;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -27,6 +29,9 @@ public class CadastrarUsuarioInternoRequisicao {
     @NotNull(message = "O consentimento LGPD e obrigatorio.")
     private Boolean consentimentoLgpd;
 
+    @NotNull(message = "O ID da unidade e obrigatorio.")
+    private UUID unidadeId;
+
     public String getNome() {
         return nome;
     }
@@ -45,5 +50,9 @@ public class CadastrarUsuarioInternoRequisicao {
 
     public Boolean getConsentimentoLgpd() {
         return consentimentoLgpd;
+    }
+
+    public UUID getUnidadeId() {
+        return unidadeId;
     }
 }

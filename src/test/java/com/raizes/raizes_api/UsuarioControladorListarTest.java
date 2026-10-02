@@ -3,6 +3,7 @@ package com.raizes.raizes_api;
 import com.raizes.raizes_api.api.controlador.UsuarioControlador;
 import com.raizes.raizes_api.api.dto.resposta.UsuarioResposta;
 import com.raizes.raizes_api.aplicacao.servico.UsuarioServico;
+import com.raizes.raizes_api.aplicacao.servico.UsuarioInternoServico;
 import com.raizes.raizes_api.dominio.enums.PerfilUsuario;
 import com.raizes.raizes_api.infraestrutura.seguranca.ConfiguracaoSeguranca;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,9 @@ class UsuarioControladorListarTest {
 
     @MockitoBean
     private UsuarioServico usuarioServico;
+
+    @MockitoBean
+    private UsuarioInternoServico usuarioInternoServico;
 
     @MockitoBean
     private JwtDecoder jwtDecoder;

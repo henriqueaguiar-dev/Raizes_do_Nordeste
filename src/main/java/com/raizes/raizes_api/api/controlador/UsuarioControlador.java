@@ -4,6 +4,7 @@ import com.raizes.raizes_api.api.dto.requisicao.AtualizarUsuarioRequisicao;
 import com.raizes.raizes_api.api.dto.requisicao.CadastrarUsuarioInternoRequisicao;
 import com.raizes.raizes_api.api.dto.requisicao.CadastrarUsuarioRequisicao;
 import com.raizes.raizes_api.api.dto.resposta.UsuarioResposta;
+import com.raizes.raizes_api.aplicacao.servico.UsuarioInternoServico;
 import com.raizes.raizes_api.aplicacao.servico.UsuarioServico;
 import com.raizes.raizes_api.dominio.excecao.AcessoNegadoExcecao;
 import jakarta.validation.Valid;
@@ -21,9 +22,11 @@ import org.springframework.web.bind.annotation.*;
 public class UsuarioControlador {
 
     private final UsuarioServico usuarioServico;
+    private final UsuarioInternoServico usuarioInternoServico;
 
-    public UsuarioControlador(UsuarioServico usuarioServico) {
+    public UsuarioControlador(UsuarioServico usuarioServico, UsuarioInternoServico usuarioInternoServico) {
         this.usuarioServico = usuarioServico;
+        this.usuarioInternoServico = usuarioInternoServico;
     }
 
     @PostMapping
@@ -69,6 +72,6 @@ public class UsuarioControlador {
     @PostMapping("/internos")
     @ResponseStatus(HttpStatus.CREATED)
     public UsuarioResposta cadastrarInterno(@Valid @RequestBody CadastrarUsuarioInternoRequisicao requisicao) {
-        return usuarioServico.cadastrarInterno(requisicao);
+        return usuarioInternoServico.cadastrarInterno(requisicao);
     }
 }

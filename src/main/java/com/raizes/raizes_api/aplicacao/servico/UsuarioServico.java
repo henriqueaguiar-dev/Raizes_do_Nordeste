@@ -69,7 +69,8 @@ public class UsuarioServico {
                 requisicao.getPerfil(),
                 true,
                 requisicao.getConsentimentoLgpd(),
-                OffsetDateTime.now());
+                OffsetDateTime.now(),
+                requisicao.getUnidadeId());
 
         UsuarioEntidade usuarioSalvo = usuarioRepositorio.save(usuario);
 
@@ -95,7 +96,8 @@ public class UsuarioServico {
                 usuarioAtual.getPerfil(),
                 usuarioAtual.isAtivo(),
                 requisicao.getConsentimentoLgpd(),
-                usuarioAtual.getCriadoEm());
+                usuarioAtual.getCriadoEm(),
+                usuarioAtual.getUnidadeId());
 
         return paraResposta(usuarioRepositorio.save(usuarioAtualizado));
     }
@@ -113,13 +115,14 @@ public class UsuarioServico {
                 usuarioAtual.getPerfil(),
                 false,
                 usuarioAtual.isConsentimentoLgpd(),
-                usuarioAtual.getCriadoEm());
+                usuarioAtual.getCriadoEm(),
+                usuarioAtual.getUnidadeId());
 
         usuarioRepositorio.save(usuarioDesativado);
     }
 
     public List<UsuarioResposta> listar() {
-        return usuarioRepositorio.findAll()
+        return usuarioRepositorio.findByPerfil(PerfilUsuario.CLIENTE)
                 .stream()
                 .map(this::paraResposta)
                 .toList();

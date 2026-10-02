@@ -41,10 +41,18 @@ public class UsuarioEntidade {
     @Column (name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm;
 
+    @Column(name = "unidade_id")
+    private UUID unidadeId;
+
     protected UsuarioEntidade() {
     }
 
     public UsuarioEntidade(UUID id, String nome, String email, String senhaHash, PerfilUsuario perfil, boolean ativo, boolean consentimentoLgpd, OffsetDateTime criadoEm) {
+        this(id, nome, email, senhaHash, perfil, ativo, consentimentoLgpd, criadoEm, null);
+        }
+
+        public UsuarioEntidade(UUID id, String nome, String email, String senhaHash, PerfilUsuario perfil,
+            boolean ativo, boolean consentimentoLgpd, OffsetDateTime criadoEm, UUID unidadeId) {
         this.id = id;
         this.nome = nome;
         this.email = email;
@@ -53,6 +61,7 @@ public class UsuarioEntidade {
         this.ativo = ativo;
         this.consentimentoLgpd = consentimentoLgpd;
         this.criadoEm = criadoEm;
+        this.unidadeId = unidadeId;
     }
 
     public UUID getId() {
@@ -85,5 +94,9 @@ public class UsuarioEntidade {
 
     public OffsetDateTime getCriadoEm() {
         return criadoEm;
+    }
+
+    public UUID getUnidadeId() {
+        return unidadeId;
     }
 }
