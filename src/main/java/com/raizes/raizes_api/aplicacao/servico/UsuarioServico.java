@@ -121,8 +121,16 @@ public class UsuarioServico {
         usuarioRepositorio.save(usuarioDesativado);
     }
 
-    public List<UsuarioResposta> listar() {
+    public List<UsuarioResposta> listarCliente() {
         return usuarioRepositorio.findByPerfil(PerfilUsuario.CLIENTE)
+                .stream()
+                .map(this::paraResposta)
+                .toList();
+    }
+
+    public List<UsuarioResposta> listarColaboradores() {
+        return usuarioRepositorio.findByPerfilIn(
+                List.of(PerfilUsuario.ATENDENTE, PerfilUsuario.COZINHA, PerfilUsuario.GERENTE))
                 .stream()
                 .map(this::paraResposta)
                 .toList();

@@ -44,14 +44,14 @@ class UsuarioControladorListarTest {
 
     @Test
     void administradorPodeListarUsuarios() throws Exception {
-        when(usuarioServico.listar()).thenReturn(List.of(new UsuarioResposta(UUID.randomUUID(), "Admin",
+        when(usuarioServico.listarCliente()).thenReturn(List.of(new UsuarioResposta(UUID.randomUUID(), "Admin",
                 "admin@example.com", PerfilUsuario.ADMIN, true, true)));
 
         mockMvc.perform(get("/usuarios").with(jwt().authorities(List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].email").value("admin@example.com"));
 
-        verify(usuarioServico).listar();
+        verify(usuarioServico).listarCliente();
     }
 
     @Test
@@ -59,6 +59,28 @@ class UsuarioControladorListarTest {
         mockMvc.perform(get("/usuarios").with(jwt().authorities(List.of(new SimpleGrantedAuthority("ROLE_CLIENTE")))))
                 .andExpect(status().isForbidden());
 
-        verify(usuarioServico, never()).listar();
+        verify(usuarioServico, never()).listarCliente();
+    }
+
+    @Test
+    void administradorPodeListarColaboradores() throws Exception {
+        when(usuarioServico.listarColaboradores()).thenReturn(List.of(new UsuarioResposta(UUID.randomUUID(),
+                "Atendente", "atendente@example.com", PerfilUsuario.ATENDENTE, true, true)));
+
+        mockMvc.perform(get("/usuarios/internos")
+                        .with(jwt().authorities(List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].email").value("atendente@example.com"));
+
+        verify(usuarioServico).listarColaboradores();
+    }
+
+    @Test
+    void clienteAutenticadoNaoPodeListarColaboradores() throws Exception {
+        mockMvc.perform(get("/usuarios/internos")
+                        .with(jwt().authorities(List.of(new SimpleGrantedAuthority("ROLE_CLIENTE")))))
+                .andExpect(status().isForbidden());
+
+        verify(usuarioServico, never()).listarColaboradores();
     }
 }

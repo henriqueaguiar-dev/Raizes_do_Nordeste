@@ -21,6 +21,7 @@ public class ConfiguracaoSeguranca {
                                                 .requestMatchers("/h2-console/**").permitAll()
                                                 .requestMatchers("/auth/**").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/usuarios").hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.GET, "/usuarios/internos").hasRole("ADMIN")
                                                 .requestMatchers(HttpMethod.POST, "/usuarios/internos").hasRole("ADMIN")
                                                 .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
                                                 .requestMatchers(HttpMethod.PUT, "/usuarios/**").hasAnyRole("CLIENTE", "ADMIN")

@@ -36,8 +36,8 @@ public class UsuarioControlador {
     }
 
     @GetMapping
-    public List<UsuarioResposta> listar() {
-        return usuarioServico.listar();
+    public List<UsuarioResposta> listarClientes() {
+        return usuarioServico.listarCliente();
     }
 
     @PutMapping("/{id}")
@@ -73,5 +73,10 @@ public class UsuarioControlador {
     @ResponseStatus(HttpStatus.CREATED)
     public UsuarioResposta cadastrarInterno(@Valid @RequestBody CadastrarUsuarioInternoRequisicao requisicao) {
         return usuarioInternoServico.cadastrarInterno(requisicao);
+    }
+
+    @GetMapping("/internos")
+    public List<UsuarioResposta> listarColaboradores() {
+        return usuarioServico.listarColaboradores();
     }
 }

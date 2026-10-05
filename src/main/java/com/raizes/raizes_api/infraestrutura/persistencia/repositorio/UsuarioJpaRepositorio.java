@@ -1,5 +1,6 @@
 package com.raizes.raizes_api.infraestrutura.persistencia.repositorio;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,5 +15,7 @@ public interface UsuarioJpaRepositorio extends JpaRepository<UsuarioEntidade, UU
 
     boolean existsByEmail(String email);
 
-    Optional<UsuarioEntidade> findByPerfil(PerfilUsuario cliente);
+    List<UsuarioEntidade> findByPerfil(PerfilUsuario perfil);
+
+    List<UsuarioEntidade> findByPerfilIn(List<PerfilUsuario> perfis);
 }

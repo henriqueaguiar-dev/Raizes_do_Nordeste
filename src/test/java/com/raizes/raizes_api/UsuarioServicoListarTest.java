@@ -36,17 +36,17 @@ class UsuarioServicoListarTest {
 
     @Test
     void listarRetornaUsuariosAtivosEInativosComoRespostasPublicas() {
-        when(usuarioRepositorio.findAll()).thenReturn(List.of(usuario("ativo@example.com", true),
+        when(usuarioRepositorio.findByPerfil(PerfilUsuario.CLIENTE)).thenReturn(List.of(usuario("ativo@example.com", true),
                 usuario("inativo@example.com", false)));
 
-        List<UsuarioResposta> resposta = usuarioServico.listar();
+        List<UsuarioResposta> resposta = usuarioServico.listarCliente();
 
         assertEquals(2, resposta.size());
         assertEquals("ativo@example.com", resposta.get(0).getEmail());
         assertTrue(resposta.get(0).isAtivo());
         assertEquals("inativo@example.com", resposta.get(1).getEmail());
         assertFalse(resposta.get(1).isAtivo());
-        verify(usuarioRepositorio).findAll();
+        verify(usuarioRepositorio).findByPerfil(PerfilUsuario.CLIENTE);
     }
 
     private UsuarioEntidade usuario(String email, boolean ativo) {
