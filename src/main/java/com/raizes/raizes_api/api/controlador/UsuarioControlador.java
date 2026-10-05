@@ -44,8 +44,7 @@ public class UsuarioControlador {
     public UsuarioResposta atualizar(
             @PathVariable UUID id,
             @Valid @RequestBody AtualizarUsuarioRequisicao requisicao,
-            @AuthenticationPrincipal Jwt jwt
-    ) {
+            @AuthenticationPrincipal Jwt jwt) {
         UUID usuarioAutenticadoId = UUID.fromString(jwt.getSubject());
         boolean administrador = "ADMIN".equals(jwt.getClaimAsString("perfil"));
 
@@ -78,5 +77,21 @@ public class UsuarioControlador {
     @GetMapping("/internos")
     public List<UsuarioResposta> listarColaboradores() {
         return usuarioServico.listarColaboradores();
+    }
+
+    @PutMapping("/internos/{id}")
+    public UsuarioResposta atualizarinterno(
+            @PathVariable UUID id,
+            @Valid @RequestBody AtualizarUsuarioRequisicao requisicao,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID usuarioAutenticadoId = UUID.fromString(jwt.getSubject());
+        boolean administrador = "ADMIN".equals(jwt.getClaimAsString("perfil"));
+
+        if (!administrador && !id.equals(usuarioAutenticadoId)) {
+            throw new AcessoNegadoExcecao("Voce nao tem permissao para atualizar este usuario.");
+        }
+
+        return usuarioServico.atualizar(id, requisicao);
     }
 }
