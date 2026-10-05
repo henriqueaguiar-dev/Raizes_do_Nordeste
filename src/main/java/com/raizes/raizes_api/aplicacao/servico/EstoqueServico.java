@@ -77,6 +77,13 @@ public class EstoqueServico {
         return paraResposta(estoqueRepositorio.save(estoqueAtualizado));
     }
 
+    public List<EstoqueResposta> listarTudo() {
+        return estoqueRepositorio.findAll()
+                .stream()
+                .map(this::paraResposta)
+                .toList();
+    }
+
     public List<EstoqueResposta> listarPorUnidade(UUID unidadeId) {
         if (!unidadeRepositorio.existsById(unidadeId)) {
             throw new RecursoNaoEncontradoExcecao("Unidade nao encontrada.");

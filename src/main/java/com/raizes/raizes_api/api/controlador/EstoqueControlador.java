@@ -29,6 +29,11 @@ public class EstoqueControlador {
         return estoqueServico.registrarSaida(requisicao);
     }
 
+    @GetMapping("/total")
+    public List<EstoqueResposta> listarTudo() {
+        return estoqueServico.listarTudo();
+    }
+
     @GetMapping("/unidades/{unidadeId}")
     public List<EstoqueResposta> listarPorUnidade(@PathVariable UUID unidadeId) {
         return estoqueServico.listarPorUnidade(unidadeId);
