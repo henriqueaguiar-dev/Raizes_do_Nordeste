@@ -94,4 +94,17 @@ public class UsuarioControlador {
 
         return usuarioServico.atualizar(id, requisicao);
     }
+
+    @DeleteMapping("/internos/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void desativarInterno(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        UUID usuarioAutenticadoId = UUID.fromString(jwt.getSubject());
+        boolean administrador = "ADMIN".equals(jwt.getClaimAsString("perfil"));
+
+        if (!administrador && !id.equals(usuarioAutenticadoId)) {
+            throw new AcessoNegadoExcecao("Voce nao tem permissao para desativar este usuario.");
+        }
+
+        usuarioServico.desativar(id);
+    }
 }
