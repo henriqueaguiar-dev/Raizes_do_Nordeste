@@ -398,6 +398,16 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 
 *Regra adotada: 1 ponto para cada R$ 1,00 pago em pedido aprovado.*
 
+O saldo considera a soma dos pagamentos aprovados do usuário identificado pelo JWT.
+Os centavos acumulam entre compras: R$ 10,50 + R$ 9,50 geram 20 pontos.
+Uma soma de R$ 10,90 gera 10 pontos. Pagamentos recusados não geram pontos.
+Envie `Authorization: Bearer SEU_TOKEN`; não é necessário informar o ID do cliente.
+
+Para consultar uma conta específica, use `GET /fidelidade/saldo/{clienteId}`.
+Somente o titular da conta e usuários com perfil **ADMIN** podem consultar esse saldo.
+Outros usuários recebem **403 Forbidden**. Ambas as rotas exigem autenticação;
+`GET /fidelidade/saldo` sempre retorna o saldo do próprio usuário autenticado.
+
 **Exemplo de retorno:**
 ```json
 {
