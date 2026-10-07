@@ -12,7 +12,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class ConfiguracaoSeguranca {
 
         @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        public SecurityFilterChain securityFilterChain(HttpSecurity http, RespostaErroSeguranca erros) throws Exception {
                 return http
                                 .csrf(csrf -> csrf.disable())
                                 .sessionManagement(session -> session
@@ -24,10 +24,12 @@ public class ConfiguracaoSeguranca {
                                                 .requestMatchers(HttpMethod.GET, "/usuarios/internos").hasRole("ADMIN")
                                                 .requestMatchers(HttpMethod.POST, "/usuarios/internos").hasRole("ADMIN")
                                                 .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
+                                                .requestMatchers(HttpMethod.PUT, "/usuarios/internos/**").hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/usuarios/internos/**").hasRole("ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/usuarios/**").hasAnyRole("CLIENTE", "ADMIN")
                                                 .requestMatchers(HttpMethod.DELETE, "/usuarios/**").hasAnyRole("CLIENTE", "ADMIN")
 
-                                                .requestMatchers("/fidelidade/saldo/**").hasAnyRole("CLIENTE", "ADMIN")
+                                                .requestMatchers("/fidelidade/saldo", "/fidelidade/saldo/**").authenticated()
 
                                                 .requestMatchers(HttpMethod.GET, "/produtos/**").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/unidades/**").permitAll()
@@ -63,7 +65,9 @@ public class ConfiguracaoSeguranca {
                                                 .requestMatchers("/auth/**").permitAll()
 
                                                 .anyRequest().authenticated())
+                                .exceptionHandling(ex -> ex.authenticationEntryPoint(erros).accessDeniedHandler(erros))
                                 .oauth2ResourceServer(oauth2 -> oauth2
+                                                .authenticationEntryPoint(erros).accessDeniedHandler(erros)
                                                 .jwt(jwt -> jwt.jwtAuthenticationConverter(
                                                                 new ConversorJwtAutoridades())))
                                 .headers(headers -> headers

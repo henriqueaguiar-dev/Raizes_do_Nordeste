@@ -23,13 +23,15 @@ public class ServicoTokenJwt {
         this.jwtEncoder = jwtEncoder;
     }
 
+    public long obterExpiracaoEmSegundos() { return expiracaoEmMinutos * 60; }
+
     public String gerarToken(UsuarioEntidade usuario) {
         Instant agora = Instant.now();
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("raizes-api")
                 .issuedAt(agora)
-                .expiresAt(agora.plusSeconds(expiracaoEmMinutos * 60))
+                .expiresAt(agora.plusSeconds(obterExpiracaoEmSegundos()))
                 .subject(usuario.getId().toString())
                 .claim("email", usuario.getEmail())
                 .claim("nome", usuario.getNome())

@@ -28,6 +28,7 @@ public class EstoqueServico {
         this.produtoRepositorio = produtoRepositorio;
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public EstoqueResposta registrarEntrada(MovimentarEstoqueRequisicao requisicao) {
         validarUnidadeEProduto(requisicao.getUnidadeId(), requisicao.getProdutoId());
 
@@ -56,6 +57,7 @@ public class EstoqueServico {
         return paraResposta(estoqueRepositorio.save(estoqueAtualizado));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public EstoqueResposta registrarSaida(MovimentarEstoqueRequisicao requisicao) {
         validarUnidadeEProduto(requisicao.getUnidadeId(), requisicao.getProdutoId());
 
@@ -103,9 +105,9 @@ public class EstoqueServico {
     }
 
     private void validarUnidadeEProduto(UUID unidadeId, UUID produtoId) {
-        if (!unidadeRepositorio.existsById(unidadeId)) {
-            throw new RecursoNaoEncontradoExcecao("Unidade nao encontrada.");
-        }
+        // Lock the unit even when stock does not exist yet, serializing first entries too.
+        unidadeRepositorio.buscarComBloqueio(unidadeId)
+                .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Unidade nao encontrada."));
 
         if (!produtoRepositorio.existsById(produtoId)) {
             throw new RecursoNaoEncontradoExcecao("Produto nao encontrado.");

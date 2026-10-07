@@ -32,9 +32,11 @@ public class PagamentoServico {
     }
 
     @Transactional
-    public PagamentoResposta processar(UUID pedidoId, ProcessarPagamentoRequisicao requisicao) {
-        PedidoEntidade pedido = pedidoRepositorio.findById(pedidoId)
+    public PagamentoResposta processar(UUID pedidoId, ProcessarPagamentoRequisicao requisicao, UUID usuarioId, String perfil) {
+        PedidoEntidade pedido = pedidoRepositorio.buscarComBloqueio(pedidoId)
                 .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
+
+        validarAcesso(pedido, usuarioId, perfil);
 
         if (pagamentoRepositorio.findByPedidoId(pedidoId).isPresent()) {
             throw new RegraDeNegocioExcecao("Pedido ja possui pagamento registrado.");
@@ -69,36 +71,37 @@ public class PagamentoServico {
         PagamentoEntidade pagamentoSalvo = pagamentoRepositorio.save(pagamento);
 
         auditoriaServico.registrar(
-                pedido.getClienteId(),
+                usuarioId,
                 "PROCESSAR_PAGAMENTO",
                 "Pagamento",
                 pagamentoSalvo.getId(),
                 "Pagamento mock com status " + pagamentoSalvo.getStatus());
 
         if (aprovado) {
-            PedidoEntidade pedidoPago = new PedidoEntidade(
-                    pedido.getId(),
-                    pedido.getClienteId(),
-                    pedido.getUnidadeId(),
-                    pedido.getCanalPedido(),
-                    StatusPedido.PAGO,
-                    pedido.getTotal(),
-                    pedido.getCriadoEm(),
-                    OffsetDateTime.now());
-
-            pedido.getItens().forEach(pedidoPago::adicionarItem);
-
-            pedidoRepositorio.save(pedidoPago);
+            pedido.alterarStatus(StatusPedido.PAGO);
+            pedidoRepositorio.save(pedido);
         }
 
         return paraResposta(pagamentoSalvo);
     }
 
-    public PagamentoResposta buscarPorPedido(UUID pedidoId) {
+    public PagamentoResposta buscarPorPedido(UUID pedidoId, UUID usuarioId, String perfil) {
+        PedidoEntidade pedido = pedidoRepositorio.findById(pedidoId)
+                .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
+        validarAcesso(pedido, usuarioId, perfil);
         PagamentoEntidade pagamento = pagamentoRepositorio.findByPedidoId(pedidoId)
                 .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pagamento nao encontrado para este pedido."));
 
         return paraResposta(pagamento);
+    }
+
+    private void validarAcesso(PedidoEntidade pedido, UUID usuarioId, String perfil) {
+        boolean permitido = switch (perfil == null ? "" : perfil) {
+            case "CLIENTE" -> pedido.getClienteId().equals(usuarioId);
+            case "ADMIN", "GERENTE", "ATENDENTE" -> true;
+            default -> false;
+        };
+        if (!permitido) throw new com.raizes.raizes_api.dominio.excecao.AcessoNegadoExcecao("Voce nao tem permissao para acessar este pagamento.");
     }
 
     private PagamentoResposta paraResposta(PagamentoEntidade pagamento) {

@@ -84,6 +84,22 @@ public class TratadorGlobalDeExcecoes {
                 "Existem campos invalidos na requisicao.", detalhes, request);
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErroResposta> tratarCorpoInvalido(Exception excecao, HttpServletRequest request) {
+        return criarResposta(HttpStatus.BAD_REQUEST, "REQUISICAO_INVALIDA", "Corpo ausente ou dados invalidos.", List.of(), request);
+    }
+
+    @ExceptionHandler({org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class})
+    public ResponseEntity<ErroResposta> tratarParametroInvalido(Exception excecao, HttpServletRequest request) {
+        return criarResposta(HttpStatus.BAD_REQUEST, "PARAMETRO_INVALIDO", "Parametro ausente ou invalido.", List.of(), request);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ErroResposta> tratarConflito(Exception excecao, HttpServletRequest request) {
+        return criarResposta(HttpStatus.CONFLICT, "CONFLITO_DE_DADOS", "Operacao conflita com os dados existentes.", List.of(), request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErroResposta> tratarErroInterno(
             Exception excecao,

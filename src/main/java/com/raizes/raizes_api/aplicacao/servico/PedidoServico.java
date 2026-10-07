@@ -51,9 +51,10 @@ public class PedidoServico {
 
     @Transactional
     public PedidoResposta criar(UUID clienteId, CriarPedidoRequisicao requisicao) {
-        if (!unidadeRepositorio.existsById(requisicao.getUnidadeId())) {
-            throw new RecursoNaoEncontradoExcecao("Unidade nao encontrada.");
-        }
+        // Same lock order as manual inventory movements; held until commit/rollback.
+        unidadeRepositorio.buscarComBloqueio(requisicao.getUnidadeId())
+                .filter(u -> Boolean.TRUE.equals(u.isAtiva()))
+                .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Unidade inexistente ou inativa."));
 
         UUID pedidoId = UUID.randomUUID();
         List<PedidoItemEntidade> itens = new ArrayList<>();
@@ -97,6 +98,12 @@ public class PedidoServico {
             itens.add(item);
         }
 
+        BigDecimal subtotalPedido = total.setScale(2, java.math.RoundingMode.HALF_UP);
+        boolean promocional = requisicao.getCanalPedido() == CanalPedido.APP || requisicao.getCanalPedido() == CanalPedido.WEB;
+        BigDecimal desconto = promocional
+                ? subtotalPedido.multiply(new BigDecimal("0.10")).setScale(2, java.math.RoundingMode.HALF_UP)
+                : new BigDecimal("0.00");
+        total = subtotalPedido.subtract(desconto);
         OffsetDateTime agora = OffsetDateTime.now();
 
         PedidoEntidade pedido = new PedidoEntidade(
@@ -105,7 +112,7 @@ public class PedidoServico {
                 requisicao.getUnidadeId(),
                 requisicao.getCanalPedido(),
                 StatusPedido.AGUARDANDO_PAGAMENTO,
-                total,
+                subtotalPedido, desconto, total,
                 agora,
                 agora);
 
@@ -123,6 +130,7 @@ public class PedidoServico {
         return paraResposta(pedidoSalvo);
     }
 
+    @Transactional(readOnly = true)
     public List<PedidoResposta> listar(UUID usuarioId, String perfil, CanalPedido canalPedido, StatusPedido status) {
     boolean cliente = "CLIENTE".equals(perfil);
 
@@ -155,6 +163,7 @@ public class PedidoServico {
             .toList();
 }
 
+    @Transactional(readOnly = true)
     public PedidoResposta buscarPorId(UUID id, UUID usuarioId, String perfil) {
     PedidoEntidade pedido = pedidoRepositorio.findById(id)
             .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
@@ -184,39 +193,23 @@ public class PedidoServico {
                 pedido.getUnidadeId(),
                 pedido.getCanalPedido(),
                 pedido.getStatus(),
-                pedido.getTotal(),
+                pedido.getSubtotal(), pedido.getValorDesconto(), pedido.getTotal(),
                 itens);
     }
 
     @Transactional
-    public PedidoResposta atualizarStatus(UUID id, StatusPedido novoStatus) {
-        PedidoEntidade pedido = pedidoRepositorio.findById(id)
+    public PedidoResposta atualizarStatus(UUID id, StatusPedido novoStatus, UUID autorId, String perfil) {
+        if (!List.of("ADMIN", "GERENTE", "COZINHA", "ATENDENTE").contains(perfil == null ? "" : perfil)) {
+            throw new AcessoNegadoExcecao("Perfil sem permissao operacional.");
+        }
+        PedidoEntidade pedido = pedidoRepositorio.buscarComBloqueio(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
-
         validarMudancaStatus(pedido.getStatus(), novoStatus);
-
-        PedidoEntidade pedidoAtualizado = new PedidoEntidade(
-                pedido.getId(),
-                pedido.getClienteId(),
-                pedido.getUnidadeId(),
-                pedido.getCanalPedido(),
-                novoStatus,
-                pedido.getTotal(),
-                pedido.getCriadoEm(),
-                OffsetDateTime.now());
-
-        pedido.getItens().forEach(pedidoAtualizado::adicionarItem);
-
-        PedidoEntidade pedidoSalvo = pedidoRepositorio.save(pedidoAtualizado);
-
-        auditoriaServico.registrar(
-                pedidoSalvo.getClienteId(),
-                "ATUALIZAR_STATUS_PEDIDO",
-                "Pedido",
-                pedidoSalvo.getId(),
-                "Status alterado para " + pedidoSalvo.getStatus());
-
-        return paraResposta(pedidoSalvo);
+        pedido.alterarStatus(novoStatus);
+        PedidoEntidade salvo = pedidoRepositorio.save(pedido);
+        auditoriaServico.registrar(autorId, "ATUALIZAR_STATUS_PEDIDO", "Pedido", id,
+                "Status alterado para " + novoStatus);
+        return paraResposta(salvo);
     }
 
     private void validarMudancaStatus(StatusPedido statusAtual, StatusPedido novoStatus) {

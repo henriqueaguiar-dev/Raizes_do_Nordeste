@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UsuarioControlador.class)
-@Import(ConfiguracaoSeguranca.class)
+@Import({ConfiguracaoSeguranca.class, com.raizes.raizes_api.infraestrutura.seguranca.RespostaErroSeguranca.class})
 class UsuarioControladorListarTest {
 
     @Autowired

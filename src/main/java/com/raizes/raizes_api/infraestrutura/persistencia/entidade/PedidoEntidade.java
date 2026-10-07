@@ -41,6 +41,10 @@ public class PedidoEntidade {
     private StatusPedido status;
 
     @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal subtotal;
+    @Column(name = "valor_desconto", nullable = false, precision = 10, scale = 2)
+    private BigDecimal valorDesconto;
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal total;
 
     @Column(name = "criado_em", nullable = false)
@@ -57,6 +61,13 @@ public class PedidoEntidade {
 
     public PedidoEntidade(UUID id, UUID clienteId, UUID unidadeId, CanalPedido canalPedido, StatusPedido status, BigDecimal total, 
         OffsetDateTime criadoEm, OffsetDateTime atualizadoEm) {
+        this(id, clienteId, unidadeId, canalPedido, status, total, BigDecimal.ZERO, total, criadoEm, atualizadoEm);
+    }
+
+    public PedidoEntidade(UUID id, UUID clienteId, UUID unidadeId, CanalPedido canalPedido, StatusPedido status,
+            BigDecimal subtotal, BigDecimal valorDesconto, BigDecimal total, OffsetDateTime criadoEm, OffsetDateTime atualizadoEm) {
+        this.subtotal = subtotal;
+        this.valorDesconto = valorDesconto;
         this.id = id;
         this.clienteId = clienteId;
         this.unidadeId = unidadeId;
@@ -65,6 +76,13 @@ public class PedidoEntidade {
         this.total = total;
         this.criadoEm = criadoEm;
         this.atualizadoEm = atualizadoEm;
+    }
+
+    public BigDecimal getSubtotal() { return subtotal; }
+    public BigDecimal getValorDesconto() { return valorDesconto; }
+    public void alterarStatus(StatusPedido status) {
+        this.status = status;
+        this.atualizadoEm = OffsetDateTime.now();
     }
 
     public void adicionarItem(PedidoItemEntidade item) {

@@ -24,7 +24,7 @@ public class PedidoMapeador {
                 entidade.getClienteId(),
                 entidade.getUnidadeId(),
                 entidade.getCanalPedido(),
-                itens
+                itens, entidade.getStatus(), entidade.getSubtotal(), entidade.getValorDesconto(), entidade.getTotal()
         );
     }
 
@@ -35,7 +35,7 @@ public class PedidoMapeador {
                 pedido.getUnidadeId(),
                 pedido.getCanalPedido(),
                 pedido.getStatus(),
-                pedido.getTotal(),
+                pedido.getSubtotal(), pedido.getValorDesconto(), pedido.getTotal(),
                 OffsetDateTime.now(),
                 OffsetDateTime.now()
         );

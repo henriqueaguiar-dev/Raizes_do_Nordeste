@@ -27,11 +27,13 @@ public class UnidadeControlador {
         return unidadeServico.criar(requisicao);
     }
 
+    @io.swagger.v3.oas.annotations.security.SecurityRequirements
     @GetMapping
     public List<UnidadeResposta> listar() {
         return unidadeServico.listar();
     }
 
+    @io.swagger.v3.oas.annotations.security.SecurityRequirements
     @GetMapping("/{id}")
     public UnidadeResposta buscarPorId(@PathVariable UUID id) {
         return unidadeServico.buscarPorId(id);

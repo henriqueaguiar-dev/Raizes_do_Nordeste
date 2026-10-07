@@ -29,6 +29,7 @@ public class UsuarioControlador {
         this.usuarioInternoServico = usuarioInternoServico;
     }
 
+    @io.swagger.v3.oas.annotations.security.SecurityRequirements
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UsuarioResposta cadastrar(@Valid @RequestBody CadastrarUsuarioRequisicao requisicao) {

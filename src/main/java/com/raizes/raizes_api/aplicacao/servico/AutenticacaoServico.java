@@ -49,6 +49,6 @@ public class AutenticacaoServico {
                 usuario.getPerfil(),
                 token,
                 "Bearer",
-                3600L);
+                servicoTokenJwt.obterExpiracaoEmSegundos());
     }
 }

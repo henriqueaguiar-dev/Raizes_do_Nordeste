@@ -27,11 +27,13 @@ public class ProdutoControlador {
         return produtoServico.criar(requisicao);
     }
 
+    @io.swagger.v3.oas.annotations.security.SecurityRequirements
     @GetMapping
     public List<ProdutoResposta> listar() {
         return produtoServico.listar();
     }
 
+    @io.swagger.v3.oas.annotations.security.SecurityRequirements
     @GetMapping("/{id}")
     public ProdutoResposta buscarPorId(@PathVariable UUID id) {
         return produtoServico.buscarPorId(id);

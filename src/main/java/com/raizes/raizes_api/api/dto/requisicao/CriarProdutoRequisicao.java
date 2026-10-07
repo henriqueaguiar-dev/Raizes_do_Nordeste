@@ -19,6 +19,7 @@ public class CriarProdutoRequisicao {
 
     @NotNull(message = "O preco do produto e obrigatorio.")
     @DecimalMin(value = "0.01", message = "O preco deve ser maior que zero.")
+    @jakarta.validation.constraints.Digits(integer = 8, fraction = 2, message = "Preco deve ter ate oito digitos inteiros e duas casas decimais.")
     private BigDecimal preco;
 
     public String getNome() {

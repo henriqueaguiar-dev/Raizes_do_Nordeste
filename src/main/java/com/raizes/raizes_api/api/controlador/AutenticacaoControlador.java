@@ -16,6 +16,7 @@ public class AutenticacaoControlador {
         this.autenticacaoServico = autenticacaoServico;
     }
 
+    @io.swagger.v3.oas.annotations.security.SecurityRequirements
     @PostMapping("/login")
     public LoginResposta login(@Valid @RequestBody LoginRequisicao requisicao) {
         return autenticacaoServico.login(requisicao);

@@ -26,4 +26,7 @@ public interface PedidoJpaRepositorio extends JpaRepository<PedidoEntidade, UUID
     List<PedidoEntidade> findByClienteIdAndCanalPedidoAndStatus(UUID clienteId, CanalPedido canalPedido,
             StatusPedido status);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select e from PedidoEntidade e where e.id = :id")
+    java.util.Optional<PedidoEntidade> buscarComBloqueio(@org.springframework.data.repository.query.Param("id") UUID id);
 }

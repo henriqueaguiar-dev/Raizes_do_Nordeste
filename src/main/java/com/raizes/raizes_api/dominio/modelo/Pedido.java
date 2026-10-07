@@ -15,6 +15,8 @@ public class Pedido {
     private UUID unidadeId;
     private CanalPedido canalPedido;
     private StatusPedido status;
+    private BigDecimal subtotal;
+    private BigDecimal valorDesconto;
     private BigDecimal total;
     private List<PedidoItem> itens = new ArrayList<>();
 
@@ -28,8 +30,23 @@ public class Pedido {
         this.canalPedido = canalPedido;
         this.status = StatusPedido.AGUARDANDO_PAGAMENTO;
         this.itens = itens;
-        this.total = calcularTotal(itens);
+        this.subtotal = calcularTotal(itens).setScale(2, java.math.RoundingMode.HALF_UP);
+        this.valorDesconto = canalPedido == CanalPedido.APP || canalPedido == CanalPedido.WEB
+                ? subtotal.multiply(new BigDecimal("0.10")).setScale(2, java.math.RoundingMode.HALF_UP)
+                : new BigDecimal("0.00");
+        this.total = subtotal.subtract(valorDesconto);
     }
+
+    public Pedido(UUID id, UUID clienteId, UUID unidadeId, CanalPedido canalPedido, List<PedidoItem> itens,
+            StatusPedido status, BigDecimal subtotal, BigDecimal valorDesconto, BigDecimal total) {
+        this(id, clienteId, unidadeId, canalPedido, itens);
+        this.status = status;
+        this.subtotal = subtotal;
+        this.valorDesconto = valorDesconto;
+        this.total = total;
+    }
+    public BigDecimal getSubtotal() { return subtotal; }
+    public BigDecimal getValorDesconto() { return valorDesconto; }
 
     private BigDecimal calcularTotal(List<PedidoItem> itens) {
         return itens.stream()

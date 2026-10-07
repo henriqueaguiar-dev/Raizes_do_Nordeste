@@ -60,7 +60,8 @@ public class PedidoControlador {
     @PatchMapping("/{id}/status")
     public PedidoResposta atualizarStatus(
             @PathVariable UUID id,
-            @Valid @RequestBody AtualizarStatusPedidoRequisicao requisicao) {
-        return pedidoServico.atualizarStatus(id, requisicao.getStatus());
+            @Valid @RequestBody AtualizarStatusPedidoRequisicao requisicao,
+            @AuthenticationPrincipal Jwt jwt) {
+        return pedidoServico.atualizarStatus(id, requisicao.getStatus(), UUID.fromString(jwt.getSubject()), jwt.getClaimAsString("perfil"));
     }
 }

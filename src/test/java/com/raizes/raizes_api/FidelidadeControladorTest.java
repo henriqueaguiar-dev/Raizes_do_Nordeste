@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(FidelidadeControlador.class)
-@Import(ConfiguracaoSeguranca.class)
+@Import({ConfiguracaoSeguranca.class, com.raizes.raizes_api.infraestrutura.seguranca.RespostaErroSeguranca.class})
 @EnableConfigurationProperties(H2ConsoleProperties.class)
 class FidelidadeControladorTest {
     @Autowired private MockMvc mockMvc;
@@ -39,10 +39,21 @@ class FidelidadeControladorTest {
                 .thenReturn(new FidelidadeSaldoResposta(clienteId, 20));
         mockMvc.perform(get("/fidelidade/saldo")
                         .param("clienteId", UUID.randomUUID().toString())
-                        .with(jwt().jwt(token -> token.subject(clienteId.toString()))))
+                        .with(jwt().authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CLIENTE")).jwt(token -> token.subject(clienteId.toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clienteId").value(clienteId.toString()))
                 .andExpect(jsonPath("$.pontos").value(20));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"GERENTE", "ATENDENTE", "COZINHA"})
+    void perfilInternoPodeConsultarProprioSaldo(String perfil) throws Exception {
+        UUID id = UUID.randomUUID();
+        when(fidelidadeServico.consultarSaldo(id)).thenReturn(new FidelidadeSaldoResposta(id, 5));
+        mockMvc.perform(get("/fidelidade/saldo/{clienteId}", id)
+                .with(jwt().jwt(t -> t.subject(id.toString()).claim("perfil", perfil))
+                        .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + perfil))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.pontos").value(5));
     }
 
     @Test
@@ -57,7 +68,7 @@ class FidelidadeControladorTest {
         when(fidelidadeServico.consultarSaldo(clienteId))
                 .thenReturn(new FidelidadeSaldoResposta(clienteId, 15));
         mockMvc.perform(get("/fidelidade/saldo/{clienteId}", clienteId)
-                        .with(jwt().jwt(token -> token.subject(clienteId.toString()).claim("perfil", "CLIENTE"))))
+                        .with(jwt().authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CLIENTE")).jwt(token -> token.subject(clienteId.toString()).claim("perfil", "CLIENTE"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pontos").value(15));
     }
@@ -68,7 +79,8 @@ class FidelidadeControladorTest {
         when(fidelidadeServico.consultarSaldo(clienteId))
                 .thenReturn(new FidelidadeSaldoResposta(clienteId, 30));
         mockMvc.perform(get("/fidelidade/saldo/{clienteId}", clienteId)
-                        .with(jwt().jwt(token -> token.subject(UUID.randomUUID().toString()).claim("perfil", "ADMIN"))))
+                        .with(jwt().jwt(token -> token.subject(UUID.randomUUID().toString()).claim("perfil", "ADMIN"))
+                                .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clienteId").value(clienteId.toString()))
                 .andExpect(jsonPath("$.pontos").value(30));
@@ -78,7 +90,8 @@ class FidelidadeControladorTest {
     @ValueSource(strings = {"CLIENTE", "GERENTE", "ATENDENTE", "COZINHA"})
     void outrosPerfisNaoPodemConsultarOutraConta(String perfil) throws Exception {
         mockMvc.perform(get("/fidelidade/saldo/{clienteId}", UUID.randomUUID())
-                        .with(jwt().jwt(token -> token.subject(UUID.randomUUID().toString()).claim("perfil", perfil))))
+                        .with(jwt().jwt(token -> token.subject(UUID.randomUUID().toString()).claim("perfil", perfil))
+                                .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + perfil))))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(fidelidadeServico);
     }

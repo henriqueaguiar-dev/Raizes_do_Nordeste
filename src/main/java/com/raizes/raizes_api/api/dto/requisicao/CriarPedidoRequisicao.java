@@ -23,7 +23,7 @@ public class CriarPedidoRequisicao {
 
     @Valid
     @NotEmpty(message = "O pedido deve ter pelo menos um item.")
-    private List<CriarPedidoItemRequisicao> itens;
+    private List<@NotNull CriarPedidoItemRequisicao> itens;
 
 
     public UUID getUnidadeId() {
@@ -38,7 +38,7 @@ public class CriarPedidoRequisicao {
         return formaPagamento;
     }
 
-    public List<CriarPedidoItemRequisicao> getItens() {
+    public List<@NotNull CriarPedidoItemRequisicao> getItens() {
         return itens;
     }
 }

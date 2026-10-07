@@ -30,7 +30,7 @@ O sistema permite o cadastro e a autenticação de usuários, controle de produt
 - Desconto de 10% para pedidos via APP e WEB
 - Pagamento mock (aprovado ou recusado)
 - Atualização de status do pedido
-- Auditoria de ações sensíveis
+- Auditoria da criação de pedidos, alteração de status e processamento de pagamentos
 - Tratamento padronizado de erros
 - Documentação via Swagger/OpenAPI
 
@@ -77,7 +77,7 @@ Ao iniciar a aplicação, o sistema cria automaticamente um usuário administrad
 - **Senha:** Admin@123
 - **Perfil:** ADMIN
 
-*Nota: Em ambiente real, a senha inicial deve ser alterada após o primeiro acesso.*
+*Use credenciais próprias nas variáveis de ambiente. O projeto ainda não oferece endpoint para troca de senha.*
 
 ## Como Iniciar o Projeto
 Na raiz do projeto, execute:
@@ -104,7 +104,7 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 1. Faça login em `/auth/login`.
 2. Copie o `accessToken`.
 3. Clique em **Authorize**.
-4. Informe: `Bearer SEU_TOKEN`
+4. Informe somente o token JWT, sem o prefixo `Bearer` (o Swagger adiciona esse prefixo).
 
 ---
 
@@ -168,6 +168,26 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 }
 ```
 
+#### Consultar e manter usuários
+- `GET /usuarios`: lista clientes ativos e inativos; somente ADMIN.
+- `GET /usuarios/internos`: lista ATENDENTE, COZINHA e GERENTE; somente ADMIN.
+- `PUT /usuarios/{id}` e `DELETE /usuarios/{id}`: CLIENTE titular ou ADMIN.
+- `PUT /usuarios/internos/{id}` e `DELETE /usuarios/internos/{id}`: somente ADMIN.
+
+PUT recebe `nome`, `email` e `consentimentoLgpd`; preserva senha, perfil, unidade e status ativo.
+DELETE marca o usuário como inativo, sem apagar o registro. A desativação impede novos logins;
+um JWT já emitido continua válido até expirar. Não existe endpoint de troca de senha neste projeto.
+
+**Exemplo de request para atualizar usuário (cliente ou interno):**
+```json
+{
+  "nome": "Maria Atualizada",
+  "email": "maria.atualizada@exemplo.com",
+  "consentimentoLgpd": true
+}
+```
+Os três campos são obrigatórios; o PUT não é uma atualização parcial.
+
 #### Cadastrar usuário interno
 `POST /usuarios/internos`  
 *Acesso restrito: ADMIN*
@@ -179,10 +199,12 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
   "email": "gerente@raizes.com",
   "senha": "Senha@123",
   "perfil": "GERENTE",
-  "consentimentoLgpd": true
+  "consentimentoLgpd": true,
+  "unidadeId": "uuid-de-uma-unidade-existente"
 }
 ```
 *Perfis permitidos:* ADMIN, GERENTE, COZINHA, ATENDENTE.
+Crie primeiro uma unidade e informe seu ID no campo obrigatório `unidadeId`.
 
 ---
 
@@ -212,6 +234,19 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 #### Atualizar produto
 `PUT /produtos/{id}`  
 *Acesso: ADMIN ou GERENTE*
+
+**Request:**
+```json
+{
+  "nome": "X-Burger Nordestino",
+  "descricao": "Hambúrguer artesanal com queijo coalho e molho da casa.",
+  "preco": 32.90,
+  "ativo": true
+}
+```
+Todos os campos são obrigatórios. O preço deve ser maior que zero, ter no máximo
+oito dígitos inteiros e duas casas decimais. `ativo: false` desativa o produto;
+`ativo: true` permite reativá-lo.
 
 #### Desativar produto
 `DELETE /produtos/{id}`  
@@ -245,6 +280,17 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 `PUT /unidades/{id}`  
 *Acesso: ADMIN ou GERENTE*
 
+**Request:**
+```json
+{
+  "nome": "Unidade Centro",
+  "endereco": "Rua Principal, 200",
+  "ativa": true
+}
+```
+Todos os campos são obrigatórios. `ativa: false` desativa a unidade;
+`ativa: true` permite reativá-la. Unidades inativas não aceitam novos pedidos.
+
 #### Desativar unidade
 `DELETE /unidades/{id}`  
 *Acesso: ADMIN ou GERENTE*
@@ -252,6 +298,13 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 ---
 
 ### Estoques
+
+#### Listar todo o estoque
+`GET /estoques/total` — ADMIN ou GERENTE.
+
+As movimentações e a criação de pedidos usam transações e bloqueiam a unidade durante
+a alteração do estoque, evitando baixas perdidas e a criação simultânea de registros duplicados.
+Um pedido com item inválido desfaz todas as baixas da mesma transação.
 
 #### Registrar entrada de estoque
 `POST /estoques/entradas`  
@@ -309,8 +362,13 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
   ]
 }
 ```
-*Canais aceitos:* APP, TOTEM, BALCÃO, PICKUP, WEB.  
+*Canais aceitos:* APP, TOTEM, BALCAO, PICKUP, WEB.
 *Pedidos feitos por **APP** ou **WEB** recebem desconto de 10%.*
+
+`formaPagamento` é obrigatório e aceita `MOCK`, `PIX` ou `CARTAO`. Atualmente esse
+campo é validado, mas não é persistido nem utilizado no processamento do pedido.
+O método efetivamente registrado é o campo `metodo` enviado ao endpoint de pagamento;
+a aplicação não exige que ele seja igual à `formaPagamento` da criação do pedido.
 
 **Response:**
 ```json
@@ -341,7 +399,7 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 
 **Regras:**
 - **CLIENTE** vê apenas seus próprios pedidos.
-- **ADMIN, GERENTE, COZINHA e ATENDENTE** podem consultar pedidos conforme a permissão configurada.
+- **ADMIN, GERENTE, COZINHA e ATENDENTE** podem consultar todos os pedidos, sem restrição por unidade, respeitando os filtros opcionais enviados.
 
 #### Buscar pedido por ID
 `GET /pedidos/{id}`  
@@ -357,7 +415,10 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
   "status": "EM_PREPARO"
 }
 ```
-*Fluxo de status:* AGUARDANDO_PAGAMENTO $\rightarrow$ PAGO $\rightarrow$ EM_PREPARO $\rightarrow$ PRONTO $\rightarrow$ ENTREGUE $\rightarrow$ CANCELADO.
+*Fluxo de status:* AGUARDANDO_PAGAMENTO → PAGO → EM_PREPARO → PRONTO → ENTREGUE.
+Somente um pagamento aprovado muda o pedido para PAGO. Antes de ENTREGUE, o pedido pode
+ser CANCELADO. ENTREGUE e CANCELADO são estados finais.
+A alteração operacional exige ADMIN, GERENTE, COZINHA ou ATENDENTE.
 
 ---
 
@@ -366,6 +427,10 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 #### Processar pagamento mock
 `POST /pagamentos/pedidos/{pedidoId}`  
 *Acesso: usuário autenticado*
+
+O campo `metodo` aceita `MOCK`, `PIX` e `CARTAO`. Todos os métodos são simulados:
+não há integração com banco, operadora de cartão ou provedor de PIX.
+`aprovadoMock` é obrigatório e determina se o pagamento será aprovado ou recusado.
 
 **Request aprovado:**
 ```json
@@ -383,6 +448,11 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
   "aprovadoMock": false
 }
 ```
+
+O titular com perfil CLIENTE e usuários ADMIN, GERENTE ou ATENDENTE podem processar
+ou consultar o pagamento. COZINHA e clientes de outras contas recebem 403.
+Cada pedido admite um único pagamento registrado, inclusive se recusado; uma recusa
+não permite nova tentativa nesse pedido. A auditoria registra o usuário que executou a ação.
 
 #### Buscar pagamento por pedido
 `GET /pagamentos/pedidos/{pedidoId}`  
@@ -418,6 +488,18 @@ Outros usuários recebem **403 Forbidden**. Ambas as rotas exigem autenticação
 
 ---
 
+## Auditoria
+
+A aplicação registra automaticamente estas ações no banco:
+- `CRIAR_PEDIDO`: criação de pedido.
+- `ATUALIZAR_STATUS_PEDIDO`: alteração operacional do status.
+- `PROCESSAR_PAGAMENTO`: registro de pagamento aprovado ou recusado.
+
+O registro identifica o usuário que executou a ação, o recurso afetado, os detalhes
+e a data/hora. Cadastros, atualizações e desativações de usuários, produtos e unidades,
+assim como movimentações manuais de estoque, não geram auditoria atualmente.
+Não há endpoint público para consultar esses registros.
+
 ## Padrão de Erro
 A API utiliza uma resposta padronizada para erros.
 
@@ -437,3 +519,50 @@ A API utiliza uma resposta padronizada para erros.
 - **401** - Usuário não autenticado
 - **403** - Usuário sem permissão
 - **404** - Recurso não encontrado
+- **409** - Conflito de negócio ou de dados
+- **422** - Campos que não atendem à validação
+- **500** - Erro interno inesperado
+
+JSON inválido, enums desconhecidos e UUIDs inválidos retornam 400. Erros de autenticação
+e autorização também seguem o formato `ErroResposta`.
+
+## Configuração e execução dos testes
+
+`JWT_EXPIRATION_MINUTES` é opcional e vale 60 por padrão. O `expiresIn` do login
+corresponde à duração configurada em segundos.
+
+Com Java 21, execute a suíte local (H2 em memória):
+```bash
+./mvnw test
+```
+Os testes configuram suas próprias credenciais fictícias. O agente Mockito é configurado
+no Maven para evitar depender de autoanexação da JVM.
+
+A API e todos os testes usam H2 em memória. Nenhum serviço de banco externo é necessário.
+Os dados se perdem ao encerrar a aplicação. O schema é gerado pelo Hibernate.
+
+O desconto é arredondado para duas casas com HALF_UP. Preços também precisam ter no
+máximo duas casas decimais. Pedidos cancelados não estornam estoque nem pagamentos;
+os pontos seguem a soma dos pagamentos aprovados. Essas são as regras atuais do mock.
+
+## Testes automáticos no GitHub (CI)
+
+O workflow `.github/workflows/ci.yml` executa em cada push, em pull requests e
+manualmente pela aba **Actions** do repositório. Usa Java 21, Maven Wrapper e H2.
+Não precisa configurar banco externo nem credenciais da aplicação: os testes usam
+configuração própria com dados fictícios.
+
+A validação executa:
+```bash
+bash ./mvnw --batch-mode --no-transfer-progress clean test
+```
+Se algum teste falhar, a execução fica marcada como falha. Os relatórios de testes
+são enviados mesmo quando a validação falha, se tiverem sido gerados, e ficam
+disponíveis para download por 14 dias na página da execução.
+
+Para ativar, envie o arquivo do workflow ao repositório e acompanhe a aba **Actions**.
+Para exigir testes aprovados antes de integrar uma pull request, configure a regra
+de proteção da branch `main` e selecione o check **Testes automaticos** como obrigatório
+após a primeira execução.
+
+Este workflow executa apenas os testes; não publica a aplicação.
