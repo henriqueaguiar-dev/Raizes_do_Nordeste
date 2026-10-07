@@ -27,6 +27,8 @@ public class ConfiguracaoSeguranca {
                                                 .requestMatchers(HttpMethod.PUT, "/usuarios/**").hasAnyRole("CLIENTE", "ADMIN")
                                                 .requestMatchers(HttpMethod.DELETE, "/usuarios/**").hasAnyRole("CLIENTE", "ADMIN")
 
+                                                .requestMatchers("/fidelidade/saldo/**").hasAnyRole("CLIENTE", "ADMIN")
+
                                                 .requestMatchers(HttpMethod.GET, "/produtos/**").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/unidades/**").permitAll()
 
@@ -45,6 +47,10 @@ public class ConfiguracaoSeguranca {
                                                 .hasAnyRole("ADMIN", "GERENTE")
 
                                                 .requestMatchers("/estoques/**").hasAnyRole("ADMIN", "GERENTE")
+
+                                                .requestMatchers(HttpMethod.PATCH, "/pedidos/*/status")
+                                                .hasAnyRole("ADMIN", "GERENTE", "COZINHA", "ATENDENTE")
+                                                
                                                 .requestMatchers("/pedidos/**").authenticated()
                                                 .requestMatchers("/pagamentos/**").authenticated()
 
