@@ -4,12 +4,19 @@ import com.raizes.raizes_api.api.dto.requisicao.AtualizarProdutoRequisicao;
 import com.raizes.raizes_api.api.dto.requisicao.CriarProdutoRequisicao;
 import com.raizes.raizes_api.api.dto.resposta.ProdutoResposta;
 import com.raizes.raizes_api.aplicacao.servico.ProdutoServico;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+
+@Tag(
+    name = "04 - Produtos",
+    description = "Castro e gerenciamento de produtos"
+)
 
 @RestController
 @RequestMapping("/produtos")

@@ -4,12 +4,19 @@ import com.raizes.raizes_api.api.dto.requisicao.AtualizarUnidadeRequisicao;
 import com.raizes.raizes_api.api.dto.requisicao.CriarUnidadeRequisicao;
 import com.raizes.raizes_api.api.dto.resposta.UnidadeResposta;
 import com.raizes.raizes_api.aplicacao.servico.UnidadeServico;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+
+@Tag(
+    name = "03 - Unidades",
+    description = "Castro e gerenciamento de Lojas"
+)
 
 @RestController
 @RequestMapping("/unidades")

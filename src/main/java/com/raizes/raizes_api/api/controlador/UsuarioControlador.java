@@ -7,6 +7,8 @@ import com.raizes.raizes_api.api.dto.resposta.UsuarioResposta;
 import com.raizes.raizes_api.aplicacao.servico.UsuarioInternoServico;
 import com.raizes.raizes_api.aplicacao.servico.UsuarioServico;
 import com.raizes.raizes_api.dominio.excecao.AcessoNegadoExcecao;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 import java.util.List;
@@ -16,6 +18,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+
+@Tag(
+    name = "02 - Usuários",
+    description = "Castro e gerenciamento de usuários"
+)
 
 @RestController
 @RequestMapping("/usuarios")

@@ -3,11 +3,18 @@ package com.raizes.raizes_api.api.controlador;
 import com.raizes.raizes_api.api.dto.requisicao.MovimentarEstoqueRequisicao;
 import com.raizes.raizes_api.api.dto.resposta.EstoqueResposta;
 import com.raizes.raizes_api.aplicacao.servico.EstoqueServico;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+
+@Tag(
+    name = "05 - Estoques",
+    description = "Cadastro e gerenciamento de estoques"
+)
 
 @RestController
 @RequestMapping("/estoques")

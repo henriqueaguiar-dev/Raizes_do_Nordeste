@@ -6,6 +6,8 @@ import com.raizes.raizes_api.api.dto.resposta.PedidoResposta;
 import com.raizes.raizes_api.aplicacao.servico.PedidoServico;
 import com.raizes.raizes_api.dominio.enums.CanalPedido;
 import com.raizes.raizes_api.dominio.enums.StatusPedido;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
@@ -16,6 +18,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(
+    name = "06 - Pedidos",
+    description = "Gerenciamento de Pedidos"
+)
 @RestController
 @RequestMapping("/pedidos")
 public class PedidoControlador {

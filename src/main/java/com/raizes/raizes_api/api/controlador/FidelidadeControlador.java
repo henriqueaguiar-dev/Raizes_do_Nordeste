@@ -3,6 +3,9 @@ package com.raizes.raizes_api.api.controlador;
 import com.raizes.raizes_api.api.dto.resposta.FidelidadeSaldoResposta;
 import com.raizes.raizes_api.aplicacao.servico.FidelidadeServico;
 import com.raizes.raizes_api.dominio.excecao.AcessoNegadoExcecao;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +14,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+
+@Tag(
+    name = "08 - Fidelidade",
+    description = "Gerenciamento de programa de fidelidade"
+)
 
 @RestController
 @RequestMapping("/fidelidade")

@@ -4,12 +4,19 @@ import com.raizes.raizes_api.api.dto.requisicao.ProcessarPagamentoRequisicao;
 import com.raizes.raizes_api.api.dto.resposta.PagamentoResposta;
 import com.raizes.raizes_api.aplicacao.servico.PagamentoServico;
 import com.raizes.raizes_api.dominio.excecao.CredenciaisInvalidasExcecao;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+
+@Tag(
+    name = "07 - Pagamentos",
+    description = "Gerenciamento de pagamentos"
+)
 
 @RestController
 @RequestMapping("/pagamentos")
