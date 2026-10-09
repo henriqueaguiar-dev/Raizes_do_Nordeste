@@ -19,10 +19,17 @@ public class ConfiguracaoSwagger {
         return new OpenAPI()
                 .info(new Info()
                         .title("Raizes API")
-                        .description("API Back-end da Raizes do Nordeste.")
+                        .description("API REST para gerenciamento de unidades,\n" + //
+                                                                "            usuários, produtos, estoque, pedidos,\n" + //
+                                                                "            pagamentos e programa de fidelidade.\n" + //
+                                                                "\n" + //
+                                                                "            Desenvolvida com Java 21 e Spring Boot.\n" + //
+                                                                "\n" + //
+                                                                "            Autenticação baseada em JWT e controle\n" + //
+                                                                "            de acesso por perfis de usuário.")
                         .version("1.0.0")
                         .contact(new Contact()
-                                .name("Henrique da Silva Aguiar")))
+                                .name("Henrique da Silva Aguiar").url("https://github.com/henriqueaguiar-dev")))
                 .addSecurityItem(new SecurityRequirement().addList(esquemaSeguranca))
                 .components(new Components()
                         .addSecuritySchemes(esquemaSeguranca, new SecurityScheme()
