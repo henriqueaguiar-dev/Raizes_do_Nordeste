@@ -30,6 +30,7 @@ class FluxosApiTest {
     static final tools.jackson.databind.ObjectMapper mockJson = new tools.jackson.databind.ObjectMapper();
     static final java.util.concurrent.ConcurrentHashMap<String,Integer> errosProvedor = new java.util.concurrent.ConcurrentHashMap<>();
     static final java.util.concurrent.ConcurrentHashMap<String,String> payloadsEnviados = new java.util.concurrent.ConcurrentHashMap<>();
+    static final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.atomic.AtomicInteger> chamadasProvedor = new java.util.concurrent.ConcurrentHashMap<>();
     static com.sun.net.httpserver.HttpServer servidorMock;
 
     @org.springframework.test.context.DynamicPropertySource
@@ -41,13 +42,14 @@ class FluxosApiTest {
             var entrada = mockJson.readTree(corpo);
             String id = entrada.get("pedidoId").asText();
             payloadsEnviados.put(id,corpo);
+            chamadasProvedor.computeIfAbsent(id,k->new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
             int statusHttp = errosProvedor.getOrDefault(id,201);
             String retorno = mockJson.writeValueAsString(java.util.Map.of(
                     "pedidoId",id,"codigoTransacao","MOCK-"+UUID.randomUUID(),
                     "status",entrada.get("aprovadoMock").asBoolean() ? "APROVADO" : "RECUSADO",
                     "valor",entrada.get("valor").decimalValue(),"moeda","BRL",
                     "mensagem","Retorno do provedor mock HTTP"));
-            if (!id.equals(exchange.getRequestHeaders().getFirst("Idempotency-Key"))) statusHttp=400;
+            if (!(id+":"+entrada.get("numeroTentativa").asInt()).equals(exchange.getRequestHeaders().getFirst("Idempotency-Key"))) statusHttp=400;
             byte[] resposta=retorno.getBytes(java.nio.charset.StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type","application/json");
             exchange.sendResponseHeaders(statusHttp,resposta.length);
@@ -126,7 +128,7 @@ class FluxosApiTest {
         Cenario c = preparar(10,"29.90"); String id = campo(criar(c,"APP"),"id"); String outro = cliente();
         enviar("/pagamentos/pedidos/"+id,"{\"metodo\":\"MOCK\",\"aprovadoMock\":true}",outro,403);
         mvc.perform(get("/pagamentos/pedidos/"+id).header("Authorization","Bearer "+outro)).andExpect(status().isForbidden());
-        assertTrue(pagamentos.findByPedidoId(UUID.fromString(id)).isEmpty());
+        assertTrue(pagamentos.findFirstByPedidoIdOrderByNumeroTentativaDesc(UUID.fromString(id)).isEmpty());
         String pag = enviar("/pagamentos/pedidos/"+id,"{\"metodo\":\"MOCK\",\"aprovadoMock\":true}",c.admin(),200);
         assertEquals("APROVADO",campo(pag,"status"));
         var pedido = pedidos.findById(UUID.fromString(id)).orElseThrow();
@@ -144,6 +146,15 @@ class FluxosApiTest {
         enviar("/pagamentos/pedidos/"+id,"{\"metodo\":\"MOCK\",\"aprovadoMock\":false}",c.cliente(),200);
         assertEquals("AGUARDANDO_PAGAMENTO",pedidos.findById(UUID.fromString(id)).orElseThrow().getStatus().name());
         mvc.perform(get("/fidelidade/saldo").header("Authorization","Bearer "+c.cliente())).andExpect(jsonPath("$.restante").value(0));
+        enviar("/pagamentos/pedidos/"+id,"{\"metodo\":\"MOCK\",\"aprovadoMock\":true}",c.cliente(),200);
+        assertEquals(2,pagamentos.findByPedidoIdOrderByNumeroTentativaDesc(UUID.fromString(id)).size());
+        assertEquals("PAGO",pedidos.findById(UUID.fromString(id)).orElseThrow().getStatus().name());
+        mvc.perform(get("/pagamentos/pedidos/"+id+"/tentativas").header("Authorization","Bearer "+c.cliente()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].numeroTentativa").value(2))
+                .andExpect(jsonPath("$[0].status").value("APROVADO"))
+                .andExpect(jsonPath("$[1].status").value("RECUSADO"));
+        mvc.perform(get("/pagamentos/pedidos/"+id+"/tentativas").header("Authorization","Bearer "+cliente()))
+                .andExpect(status().isForbidden());
         enviar("/pagamentos/pedidos/"+id,"{\"metodo\":\"MOCK\",\"aprovadoMock\":true}",c.cliente(),409);
     }
     @Test void statusExigeOperadorETransicaoValida() throws Exception {
@@ -463,7 +474,7 @@ class FluxosApiTest {
         assertEquals(retorno.get("codigoTransacaoMock"),retorno.get("retornoServico").get("codigoTransacao"));
         mvc.perform(get("/pagamentos/pedidos/"+id).header("Authorization","Bearer "+c.cliente()))
                 .andExpect(status().isOk()).andExpect(content().json(resposta));
-        assertNotNull(pagamentos.findByPedidoId(UUID.fromString(id)).orElseThrow().getSolicitacaoServico());
+        assertNotNull(pagamentos.findFirstByPedidoIdOrderByNumeroTentativaDesc(UUID.fromString(id)).orElseThrow().getSolicitacaoServico());
     }
 
     @Test void falhaDoProvedorNaoRegistraPagamentoNemCreditaPontosEPermiteRepetir() throws Exception {
@@ -472,10 +483,46 @@ class FluxosApiTest {
         errosProvedor.put(id,503);
         String corpo=json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true));
         enviar("/pagamentos/pedidos/"+id,corpo,c.cliente(),502);
-        assertTrue(pagamentos.findByPedidoId(UUID.fromString(id)).isEmpty());
+        assertTrue(pagamentos.findFirstByPedidoIdOrderByNumeroTentativaDesc(UUID.fromString(id)).isEmpty());
         assertEquals("AGUARDANDO_PAGAMENTO",pedidos.findById(UUID.fromString(id)).orElseThrow().getStatus().name());
         assertEquals(0,fidelidadeServico.consultarSaldo(pedidos.findById(UUID.fromString(id)).orElseThrow().getClienteId()).pontosGanhos());
         errosProvedor.remove(id);
         enviar("/pagamentos/pedidos/"+id,corpo,c.cliente(),200);
+    }
+
+    @Test void duasAprovacoesConcorrentesDoMesmoPedidoGeramUmaUnicaCobranca() throws Exception {
+        Cenario c=preparar(10,"10.00");
+        var pedido=json.readTree(criar(c,"APP"));
+        UUID pedidoId=UUID.fromString(pedido.get("id").asText());
+        UUID clienteId=UUID.fromString(pedido.get("clienteId").asText());
+        var req=json.readValue(json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true)),
+                com.raizes.raizes_api.api.dto.requisicao.ProcessarPagamentoRequisicao.class);
+        ExecutorService pool=Executors.newFixedThreadPool(2);CountDownLatch inicio=new CountDownLatch(1);
+        Callable<Boolean> pagar=()->{inicio.await();try {
+            pagamentoServicoFidelidade.processar(pedidoId,req,clienteId,"CLIENTE");return true;
+        } catch(com.raizes.raizes_api.dominio.excecao.RegraDeNegocioExcecao e){return false;}};
+        try {
+            var a=pool.submit(pagar);var b=pool.submit(pagar);inicio.countDown();
+            assertNotEquals(a.get(15,TimeUnit.SECONDS),b.get(15,TimeUnit.SECONDS));
+            assertEquals(1,pagamentos.findByPedidoIdOrderByNumeroTentativaDesc(pedidoId).size());
+            assertEquals(1,chamadasProvedor.get(pedidoId.toString()).get());
+            assertEquals(18,fidelidadeServico.consultarSaldo(clienteId).pontosGanhos());
+        } finally {pool.shutdownNow();}
+    }
+
+    @Test void recusasConsecutivasMantemHistoricoEAprovacaoFinalCreditaUmaVez() throws Exception {
+        Cenario c=preparar(10,"10.00");String id=campo(criar(c,"APP"),"id");
+        String recusa=json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",false));
+        enviar("/pagamentos/pedidos/"+id,recusa,c.cliente(),200);
+        enviar("/pagamentos/pedidos/"+id,recusa,c.cliente(),200);
+        mvc.perform(get("/pagamentos/pedidos/"+id).header("Authorization","Bearer "+c.cliente()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.numeroTentativa").value(2))
+                .andExpect(jsonPath("$.status").value("RECUSADO"));
+        enviar("/pagamentos/pedidos/"+id,
+                json.writeValueAsString(java.util.Map.of("metodo","PIX","aprovadoMock",true)),c.cliente(),200);
+        var historico=pagamentos.findByPedidoIdOrderByNumeroTentativaDesc(UUID.fromString(id));
+        assertEquals(3,historico.size());
+        assertEquals(3,historico.getFirst().getNumeroTentativa());
+        assertEquals(18,fidelidadeServico.consultarSaldo(pedidos.findById(UUID.fromString(id)).orElseThrow().getClienteId()).pontosGanhos());
     }
 }

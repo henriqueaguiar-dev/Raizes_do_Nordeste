@@ -45,6 +45,10 @@ public class PagamentoResposta {
     public com.raizes.raizes_api.dominio.pagamento.RetornoPagamentoExterno getRetornoServico() { return retornoServico; }
     public Integer getStatusHttpServico() { return statusHttpServico; }
 
+    private int numeroTentativa;
+    public int getNumeroTentativa() { return numeroTentativa; }
+    public void definirNumeroTentativa(int numero) { this.numeroTentativa = numero; }
+
     public UUID getId() {
         return id;
     }

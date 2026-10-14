@@ -27,7 +27,7 @@ public class ProvedorPagamentoMockHttp implements ProvedorPagamento {
         try {
             HttpRequest request = HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(5))
                     .header("Content-Type", "application/json")
-                    .header("Idempotency-Key", solicitacao.pedidoId().toString())
+                    .header("Idempotency-Key", solicitacao.pedidoId()+":"+solicitacao.numeroTentativa())
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(solicitacao))).build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200 && response.statusCode() != 201) {

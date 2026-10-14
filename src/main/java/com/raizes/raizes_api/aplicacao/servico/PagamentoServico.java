@@ -47,8 +47,8 @@ public class PagamentoServico {
 
         validarAcesso(pedido, usuarioId, perfil);
 
-        if (pagamentoRepositorio.findByPedidoId(pedidoId).isPresent()) {
-            throw new RegraDeNegocioExcecao("Pedido ja possui pagamento registrado.");
+        if (pagamentoRepositorio.existsByPedidoIdAndStatus(pedidoId, StatusPagamento.APROVADO)) {
+            throw new RegraDeNegocioExcecao("Pedido ja possui pagamento aprovado.");
         }
 
         if (pedido.getStatus() != StatusPedido.AGUARDANDO_PAGAMENTO) {
@@ -61,9 +61,11 @@ public class PagamentoServico {
         }
         fidelidadeServico.validarUsoCredito(pedido.getClienteId(), valorFidelidade);
 
+        int numeroTentativa = pagamentoRepositorio.findFirstByPedidoIdOrderByNumeroTentativaDesc(pedidoId)
+                .map(p -> Math.addExact(p.getNumeroTentativa(), 1)).orElse(1);
         SolicitacaoPagamentoExterno solicitacao = new SolicitacaoPagamentoExterno(
                 pedido.getId(), pedido.getCanalPedido(), requisicao.getMetodo(),
-                pedido.getTotal().subtract(valorFidelidade), "BRL", Boolean.TRUE.equals(requisicao.getAprovadoMock()));
+                pedido.getTotal().subtract(valorFidelidade), "BRL", Boolean.TRUE.equals(requisicao.getAprovadoMock()), numeroTentativa);
         ResultadoProvedorPagamento resultado = provedorPagamento.solicitar(solicitacao);
         RetornoPagamentoExterno retorno = resultado.payload();
         boolean aprovado = retorno.status() == StatusPagamento.APROVADO;
@@ -78,6 +80,7 @@ public class PagamentoServico {
                 retorno.mensagem(),
                 OffsetDateTime.now());
 
+        pagamento.definirNumeroTentativa(numeroTentativa);
         pagamento.definirValorFidelidade(valorFidelidade);
         pagamento.registrarIntegracao(mapper.writeValueAsString(solicitacao), mapper.writeValueAsString(retorno), resultado.statusHttp());
 
@@ -104,10 +107,19 @@ public class PagamentoServico {
         PedidoEntidade pedido = pedidoRepositorio.findById(pedidoId)
                 .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
         validarAcesso(pedido, usuarioId, perfil);
-        PagamentoEntidade pagamento = pagamentoRepositorio.findByPedidoId(pedidoId)
+        PagamentoEntidade pagamento = pagamentoRepositorio.findFirstByPedidoIdOrderByNumeroTentativaDesc(pedidoId)
                 .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pagamento nao encontrado para este pedido."));
 
         return paraResposta(pagamento);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<PagamentoResposta> listarTentativas(UUID pedidoId, UUID usuarioId, String perfil) {
+        PedidoEntidade pedido = pedidoRepositorio.findById(pedidoId)
+                .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
+        validarAcesso(pedido, usuarioId, perfil);
+        return pagamentoRepositorio.findByPedidoIdOrderByNumeroTentativaDesc(pedidoId)
+                .stream().map(this::paraResposta).toList();
     }
 
     private void validarAcesso(PedidoEntidade pedido, UUID usuarioId, String perfil) {
@@ -128,6 +140,7 @@ public class PagamentoServico {
                 pagamento.getValor(),
                 pagamento.getCodigoTransacaoMock(),
                 pagamento.getRespostaMock());
+        resposta.definirNumeroTentativa(pagamento.getNumeroTentativa());
         resposta.definirValorFidelidade(pagamento.getValorFidelidade());
         if (pagamento.getRetornoServico() != null) {
             resposta.definirIntegracao(

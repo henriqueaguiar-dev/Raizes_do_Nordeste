@@ -17,7 +17,7 @@ import jakarta.persistence.UniqueConstraint;
 
 @Entity 
 @Table(name = "pagamentos", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_pagamento_pedido", columnNames = "pedido_id")
+    @UniqueConstraint(name = "uk_pagamento_pedido_tentativa", columnNames = {"pedido_id", "numero_tentativa"})
 })
 public class PagamentoEntidade {
 
@@ -71,6 +71,11 @@ public class PagamentoEntidade {
     public String getSolicitacaoServico() { return solicitacaoServico; }
     public String getRetornoServico() { return retornoServico; }
     public Integer getStatusHttpServico() { return statusHttpServico; }
+
+    @Column(name = "numero_tentativa", nullable = false)
+    private int numeroTentativa = 1;
+    public int getNumeroTentativa() { return numeroTentativa; }
+    public void definirNumeroTentativa(int numero) { this.numeroTentativa = numero; }
 
     protected PagamentoEntidade() {
     }

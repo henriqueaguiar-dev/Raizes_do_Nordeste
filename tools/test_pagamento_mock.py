@@ -16,7 +16,7 @@ class PagamentoMockTest(unittest.TestCase):
         self.thread.start()
         self.url = f'http://127.0.0.1:{self.server.server_port}/pagamentos'
         self.payload = dict(pedidoId=str(uuid.uuid4()), canalPedido='APP', metodo='MOCK',
-                            valor=53.82, moeda='BRL', aprovadoMock=True)
+                            valor=53.82, moeda='BRL', aprovadoMock=True, numeroTentativa=1)
 
     def tearDown(self):
         self.server.shutdown()
@@ -25,7 +25,7 @@ class PagamentoMockTest(unittest.TestCase):
 
     def pagar(self, payload):
         req = Request(self.url, data=json.dumps(payload).encode(),
-                      headers={'Content-Type': 'application/json', 'Idempotency-Key': payload['pedidoId']})
+                      headers={'Content-Type': 'application/json', 'Idempotency-Key': f"{payload['pedidoId']}:{payload['numeroTentativa']}"})
         try:
             with urlopen(req, timeout=2) as response:
                 return response.status, json.load(response)
@@ -46,6 +46,16 @@ class PagamentoMockTest(unittest.TestCase):
     def test_recusa(self):
         self.payload['aprovadoMock'] = False
         self.assertEqual('RECUSADO', self.pagar(self.payload)[1]['status'])
+
+    def test_nova_tentativa_apos_recusa(self):
+        self.payload['aprovadoMock'] = False
+        primeiro = self.pagar(self.payload)[1]
+        self.payload['aprovadoMock'] = True
+        self.payload['numeroTentativa'] = 2
+        status, segundo = self.pagar(self.payload)
+        self.assertEqual(201, status)
+        self.assertEqual('APROVADO', segundo['status'])
+        self.assertNotEqual(primeiro['codigoTransacao'], segundo['codigoTransacao'])
 
     def test_valores_invalidos(self):
         self.payload['valor'] = -1

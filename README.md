@@ -531,13 +531,14 @@ transacional → resposta ao cliente. `PagamentoServico` depende do contrato
   "metodo": "MOCK",
   "valor": 53.82,
   "moeda": "BRL",
-  "aprovadoMock": true
+  "aprovadoMock": true,
+  "numeroTentativa": 1
 }
 ```
 
 O valor enviado é apenas a parte externa: total do pedido menos crédito de
-fidelidade escolhido. O header `Idempotency-Key` contém o ID do pedido. Repetir a
-mesma solicitação retorna a mesma transação enquanto o mock estiver em execução;
+fidelidade escolhido. O header `Idempotency-Key` contém `pedidoId:numeroTentativa`. Repetir a
+mesma tentativa retorna a mesma transação enquanto o mock estiver em execução;
 reusar a chave com outro payload retorna 409. O mock mantém esse histórico somente
 em memória. A primeira resposta usa HTTP 201 e repetições usam HTTP 200.
 
@@ -594,12 +595,37 @@ dados registrados, sem chamar novamente o provedor.
 
 O titular com perfil CLIENTE e usuários ADMIN, GERENTE ou ATENDENTE podem processar
 ou consultar o pagamento. COZINHA e clientes de outras contas recebem 403.
-Cada pedido admite um único pagamento registrado, inclusive se recusado; uma recusa
-não permite nova tentativa nesse pedido. A auditoria registra o usuário que executou a ação.
+Um pedido pode ter várias tentativas recusadas e somente uma aprovação. Após uma
+recusa, repita o mesmo POST com o método e cenário desejados: a API atribui o próximo
+`numeroTentativa`, preservando os pagamentos anteriores e seus payloads. O cliente
+não envia esse número. Recusas não geram pontos nem consomem crédito de fidelidade.
+Uma aprovação bloqueia novos pagamentos com 409. Pedidos cancelados ou fora de
+AGUARDANDO_PAGAMENTO também não aceitam tentativas. A auditoria registra o autor de
+cada tentativa. O bloqueio do pedido serializa solicitações concorrentes antes de
+chamar o mock, impedindo duas aprovações do mesmo pedido.
+
+Falhas de comunicação (502) não geram um registro local: repetir o mesmo payload
+reutiliza o número da tentativa e a chave idempotente. Não altere o payload de uma
+tentativa cujo resultado externo é desconhecido; o mock rejeita essa alteração.
+Recusas confirmadas, por outro lado, permitem alterar o método na próxima tentativa.
 
 #### Buscar pagamento por pedido
 `GET /pagamentos/pedidos/{pedidoId}`  
 *Acesso: usuário autenticado*
+
+Retorna a tentativa mais recente, incluindo `numeroTentativa`. Sem pagamentos,
+retorna 404.
+
+#### Histórico de tentativas
+`GET /pagamentos/pedidos/{pedidoId}/tentativas`
+
+Retorna todas as tentativas, da maior para a menor numeração, com os mesmos campos
+do pagamento e os payloads do provedor. Sem tentativas, retorna `[]`. Somente o
+titular CLIENTE e ADMIN, GERENTE ou ATENDENTE têm acesso, como nas outras rotas de
+pagamento; outras contas e COZINHA recebem 403.
+
+Ao atualizar esta versão, reinicie a API e o mock para usar o contrato com
+`numeroTentativa`. O H2 em memória recria os dados ao reiniciar a aplicação.
 
 ---
 

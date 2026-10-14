@@ -54,6 +54,12 @@ public class PagamentoControlador {
                 jwt.getClaimAsString("perfil"));
     }
 
+    @GetMapping("/pedidos/{pedidoId}/tentativas")
+    public java.util.List<PagamentoResposta> listarTentativas(@PathVariable UUID pedidoId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return pagamentoServico.listarTentativas(pedidoId, obterUsuarioId(jwt), jwt.getClaimAsString("perfil"));
+    }
+
     private UUID obterUsuarioId(Jwt jwt) {
         if (jwt == null || jwt.getSubject() == null) {
             throw new CredenciaisInvalidasExcecao("Token sem identificacao valida de usuario.");

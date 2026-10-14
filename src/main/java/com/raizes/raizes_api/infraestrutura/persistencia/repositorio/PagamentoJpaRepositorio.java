@@ -13,7 +13,9 @@ import com.raizes.raizes_api.infraestrutura.persistencia.entidade.PagamentoEntid
 
 public interface PagamentoJpaRepositorio extends JpaRepository<PagamentoEntidade, UUID> {
 
-    Optional<PagamentoEntidade> findByPedidoId(UUID pedidoId);
+    Optional<PagamentoEntidade> findFirstByPedidoIdOrderByNumeroTentativaDesc(UUID pedidoId);
+    boolean existsByPedidoIdAndStatus(UUID pedidoId, StatusPagamento status);
+    java.util.List<PagamentoEntidade> findByPedidoIdOrderByNumeroTentativaDesc(UUID pedidoId);
 
     @Query("""
             select sum(pagamento.valor)

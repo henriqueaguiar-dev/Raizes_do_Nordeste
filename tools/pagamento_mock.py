@@ -31,7 +31,10 @@ class PagamentoMock(BaseHTTPRequestHandler):
             dados = json.loads(self.rfile.read(tamanho), parse_float=Decimal)
             pedido_id = str(uuid.UUID(dados['pedidoId']))
             valor = Decimal(str(dados['valor']))
-            if (self.headers.get('Idempotency-Key') != pedido_id
+            tentativa = dados['numeroTentativa']
+            chave = f'{pedido_id}:{tentativa}'
+            if (self.headers.get('Idempotency-Key') != chave
+                    or type(tentativa) is not int or tentativa < 1
                     or dados['canalPedido'] not in ('APP', 'TOTEM', 'BALCAO', 'PICKUP', 'WEB')
                     or dados['metodo'] not in ('MOCK', 'PIX', 'CARTAO')
                     or dados['moeda'] != 'BRL' or type(dados['aprovadoMock']) is not bool
@@ -39,8 +42,8 @@ class PagamentoMock(BaseHTTPRequestHandler):
                     or valor != valor.quantize(Decimal('0.01'))):
                 raise ValueError('Solicitacao invalida')
             with bloqueio:
-                if pedido_id in transacoes:
-                    anterior, retorno = transacoes[pedido_id]
+                if chave in transacoes:
+                    anterior, retorno = transacoes[chave]
                     if anterior != dados:
                         self.responder(409, {'erro': 'CHAVE_IDEMPOTENTE_COM_OUTRO_PAYLOAD'})
                         return
@@ -55,7 +58,7 @@ class PagamentoMock(BaseHTTPRequestHandler):
                         'moeda': 'BRL',
                         'mensagem': 'Pagamento mock aprovado.' if aprovado else 'Pagamento mock recusado.'
                     }
-                    transacoes[pedido_id] = (dados, retorno)
+                    transacoes[chave] = (dados, retorno)
                     status_http = 201
             self.responder(status_http, retorno)
         except (ValueError, KeyError, TypeError, ArithmeticError):
