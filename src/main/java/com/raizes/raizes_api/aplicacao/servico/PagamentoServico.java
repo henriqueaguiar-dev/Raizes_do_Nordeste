@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import com.raizes.raizes_api.dominio.pagamento.*;
+import tools.jackson.databind.ObjectMapper;
 import java.util.UUID;
 
 @Service
@@ -23,14 +25,19 @@ public class PagamentoServico {
     private final PedidoJpaRepositorio pedidoRepositorio;
     private final AuditoriaServico auditoriaServico;
     private final FidelidadeServico fidelidadeServico;
+    private final ProvedorPagamento provedorPagamento;
+    private final ObjectMapper mapper;
 
     public PagamentoServico(PagamentoJpaRepositorio pagamentoRepositorio,
             PedidoJpaRepositorio pedidoRepositorio,
-            AuditoriaServico auditoriaServico, FidelidadeServico fidelidadeServico) {
+            AuditoriaServico auditoriaServico, FidelidadeServico fidelidadeServico,
+            ProvedorPagamento provedorPagamento, ObjectMapper mapper) {
         this.pagamentoRepositorio = pagamentoRepositorio;
         this.pedidoRepositorio = pedidoRepositorio;
         this.auditoriaServico = auditoriaServico;
         this.fidelidadeServico = fidelidadeServico;
+        this.provedorPagamento = provedorPagamento;
+        this.mapper = mapper;
     }
 
     @Transactional
@@ -54,29 +61,25 @@ public class PagamentoServico {
         }
         fidelidadeServico.validarUsoCredito(pedido.getClienteId(), valorFidelidade);
 
-        boolean aprovado = Boolean.TRUE.equals(requisicao.getAprovadoMock());
-
-        StatusPagamento statusPagamento = aprovado
-                ? StatusPagamento.APROVADO
-                : StatusPagamento.RECUSADO;
-
-        String codigoTransacao = "MOCK-" + UUID.randomUUID();
-
-        String respostaMock = aprovado
-                ? "Pagamento mock aprovado."
-                : "Pagamento mock recusado.";
+        SolicitacaoPagamentoExterno solicitacao = new SolicitacaoPagamentoExterno(
+                pedido.getId(), pedido.getCanalPedido(), requisicao.getMetodo(),
+                pedido.getTotal().subtract(valorFidelidade), "BRL", Boolean.TRUE.equals(requisicao.getAprovadoMock()));
+        ResultadoProvedorPagamento resultado = provedorPagamento.solicitar(solicitacao);
+        RetornoPagamentoExterno retorno = resultado.payload();
+        boolean aprovado = retorno.status() == StatusPagamento.APROVADO;
 
         PagamentoEntidade pagamento = new PagamentoEntidade(
                 UUID.randomUUID(),
                 pedido.getId(),
-                statusPagamento,
+                retorno.status(),
                 requisicao.getMetodo(),
                 pedido.getTotal(),
-                codigoTransacao,
-                respostaMock,
+                retorno.codigoTransacao(),
+                retorno.mensagem(),
                 OffsetDateTime.now());
 
         pagamento.definirValorFidelidade(valorFidelidade);
+        pagamento.registrarIntegracao(mapper.writeValueAsString(solicitacao), mapper.writeValueAsString(retorno), resultado.statusHttp());
 
         PagamentoEntidade pagamentoSalvo = pagamentoRepositorio.save(pagamento);
 
@@ -126,6 +129,12 @@ public class PagamentoServico {
                 pagamento.getCodigoTransacaoMock(),
                 pagamento.getRespostaMock());
         resposta.definirValorFidelidade(pagamento.getValorFidelidade());
+        if (pagamento.getRetornoServico() != null) {
+            resposta.definirIntegracao(
+                    mapper.readValue(pagamento.getSolicitacaoServico(), SolicitacaoPagamentoExterno.class),
+                    mapper.readValue(pagamento.getRetornoServico(), RetornoPagamentoExterno.class),
+                    pagamento.getStatusHttpServico());
+        }
         return resposta;
     }
 }

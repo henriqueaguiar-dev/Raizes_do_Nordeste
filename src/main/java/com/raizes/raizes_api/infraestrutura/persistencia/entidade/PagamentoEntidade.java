@@ -54,6 +54,24 @@ public class PagamentoEntidade {
     public BigDecimal getValorFidelidade() { return valorFidelidade; }
     public BigDecimal getValorExterno() { return valor.subtract(valorFidelidade); }
 
+    @jakarta.persistence.Lob
+    @Column(name = "solicitacao_servico")
+    private String solicitacaoServico;
+    @jakarta.persistence.Lob
+    @Column(name = "retorno_servico")
+    private String retornoServico;
+    @Column(name = "status_http_servico")
+    private Integer statusHttpServico;
+
+    public void registrarIntegracao(String solicitacao, String retorno, int statusHttp) {
+        this.solicitacaoServico = solicitacao;
+        this.retornoServico = retorno;
+        this.statusHttpServico = statusHttp;
+    }
+    public String getSolicitacaoServico() { return solicitacaoServico; }
+    public String getRetornoServico() { return retornoServico; }
+    public Integer getStatusHttpServico() { return statusHttpServico; }
+
     protected PagamentoEntidade() {
     }
 

@@ -100,6 +100,12 @@ public class TratadorGlobalDeExcecoes {
         return criarResposta(HttpStatus.CONFLICT, "CONFLITO_DE_DADOS", "Operacao conflita com os dados existentes.", List.of(), request);
     }
 
+    @ExceptionHandler(com.raizes.raizes_api.dominio.excecao.ProvedorPagamentoExcecao.class)
+    public ResponseEntity<ErroResposta> tratarProvedorPagamento(Exception excecao, HttpServletRequest request) {
+        return criarResposta(HttpStatus.BAD_GATEWAY, "PROVEDOR_PAGAMENTO_INDISPONIVEL",
+                excecao.getMessage(), List.of(), request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErroResposta> tratarErroInterno(
             Exception excecao,

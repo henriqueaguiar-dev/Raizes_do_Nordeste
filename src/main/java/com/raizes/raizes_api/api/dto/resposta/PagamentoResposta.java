@@ -32,6 +32,19 @@ public class PagamentoResposta {
     public BigDecimal getValorFidelidade() { return valorFidelidade; }
     public BigDecimal getValorExterno() { return valor.subtract(valorFidelidade); }
 
+    private com.raizes.raizes_api.dominio.pagamento.SolicitacaoPagamentoExterno solicitacaoServico;
+    private com.raizes.raizes_api.dominio.pagamento.RetornoPagamentoExterno retornoServico;
+    private Integer statusHttpServico;
+    public void definirIntegracao(com.raizes.raizes_api.dominio.pagamento.SolicitacaoPagamentoExterno solicitacao,
+            com.raizes.raizes_api.dominio.pagamento.RetornoPagamentoExterno retorno, Integer statusHttp) {
+        this.solicitacaoServico = solicitacao;
+        this.retornoServico = retorno;
+        this.statusHttpServico = statusHttp;
+    }
+    public com.raizes.raizes_api.dominio.pagamento.SolicitacaoPagamentoExterno getSolicitacaoServico() { return solicitacaoServico; }
+    public com.raizes.raizes_api.dominio.pagamento.RetornoPagamentoExterno getRetornoServico() { return retornoServico; }
+    public Integer getStatusHttpServico() { return statusHttpServico; }
+
     public UUID getId() {
         return id;
     }

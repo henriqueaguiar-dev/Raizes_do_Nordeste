@@ -27,6 +27,39 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 class FluxosApiTest {
+    static final tools.jackson.databind.ObjectMapper mockJson = new tools.jackson.databind.ObjectMapper();
+    static final java.util.concurrent.ConcurrentHashMap<String,Integer> errosProvedor = new java.util.concurrent.ConcurrentHashMap<>();
+    static final java.util.concurrent.ConcurrentHashMap<String,String> payloadsEnviados = new java.util.concurrent.ConcurrentHashMap<>();
+    static com.sun.net.httpserver.HttpServer servidorMock;
+
+    @org.springframework.test.context.DynamicPropertySource
+    static void configurarProvedor(org.springframework.test.context.DynamicPropertyRegistry registry) throws Exception {
+        servidorMock = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
+        servidorMock.setExecutor(java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor());
+        servidorMock.createContext("/pagamentos", exchange -> {
+            String corpo = new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            var entrada = mockJson.readTree(corpo);
+            String id = entrada.get("pedidoId").asText();
+            payloadsEnviados.put(id,corpo);
+            int statusHttp = errosProvedor.getOrDefault(id,201);
+            String retorno = mockJson.writeValueAsString(java.util.Map.of(
+                    "pedidoId",id,"codigoTransacao","MOCK-"+UUID.randomUUID(),
+                    "status",entrada.get("aprovadoMock").asBoolean() ? "APROVADO" : "RECUSADO",
+                    "valor",entrada.get("valor").decimalValue(),"moeda","BRL",
+                    "mensagem","Retorno do provedor mock HTTP"));
+            if (!id.equals(exchange.getRequestHeaders().getFirst("Idempotency-Key"))) statusHttp=400;
+            byte[] resposta=retorno.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type","application/json");
+            exchange.sendResponseHeaders(statusHttp,resposta.length);
+            try(var out=exchange.getResponseBody()){out.write(resposta);}
+        });
+        servidorMock.start();
+        registry.add("app.pagamento.mock.url",()->"http://127.0.0.1:"+servidorMock.getAddress().getPort()+"/pagamentos");
+    }
+
+    @org.junit.jupiter.api.AfterAll
+    static void encerrarProvedor() { if(servidorMock!=null) servidorMock.stop(0); }
+
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired EstoqueJpaRepositorio estoques;
@@ -415,4 +448,34 @@ class FluxosApiTest {
         } finally {pool.shutdownNow();}
     }
     @Autowired com.raizes.raizes_api.aplicacao.servico.PagamentoServico pagamentoServicoFidelidade;
+
+    @Test void pagamentoEnviaCanalEValorAoServicoEDevolvePayloadRegistrado() throws Exception {
+        Cenario c=preparar(10,"29.90");
+        String id=campo(criar(c,"TOTEM"),"id");
+        String resposta=enviar("/pagamentos/pedidos/"+id,
+                json.writeValueAsString(java.util.Map.of("metodo","PIX","aprovadoMock",true)),c.cliente(),200);
+        var retorno=json.readTree(resposta);
+        assertEquals("TOTEM",json.readTree(payloadsEnviados.get(id)).get("canalPedido").asText());
+        assertEquals(59.80,retorno.get("solicitacaoServico").get("valor").asDouble(),0.001);
+        assertEquals("BRL",retorno.get("retornoServico").get("moeda").asText());
+        assertEquals(201,retorno.get("statusHttpServico").asInt());
+        assertEquals("APROVADO",retorno.get("retornoServico").get("status").asText());
+        assertEquals(retorno.get("codigoTransacaoMock"),retorno.get("retornoServico").get("codigoTransacao"));
+        mvc.perform(get("/pagamentos/pedidos/"+id).header("Authorization","Bearer "+c.cliente()))
+                .andExpect(status().isOk()).andExpect(content().json(resposta));
+        assertNotNull(pagamentos.findByPedidoId(UUID.fromString(id)).orElseThrow().getSolicitacaoServico());
+    }
+
+    @Test void falhaDoProvedorNaoRegistraPagamentoNemCreditaPontosEPermiteRepetir() throws Exception {
+        Cenario c=preparar(10,"60.00");
+        String id=campo(criar(c,"WEB"),"id");
+        errosProvedor.put(id,503);
+        String corpo=json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true));
+        enviar("/pagamentos/pedidos/"+id,corpo,c.cliente(),502);
+        assertTrue(pagamentos.findByPedidoId(UUID.fromString(id)).isEmpty());
+        assertEquals("AGUARDANDO_PAGAMENTO",pedidos.findById(UUID.fromString(id)).orElseThrow().getStatus().name());
+        assertEquals(0,fidelidadeServico.consultarSaldo(pedidos.findById(UUID.fromString(id)).orElseThrow().getClienteId()).pontosGanhos());
+        errosProvedor.remove(id);
+        enviar("/pagamentos/pedidos/"+id,corpo,c.cliente(),200);
+    }
 }

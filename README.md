@@ -51,6 +51,7 @@ Antes de executar, instale:
 - Java 21
 - Maven (ou use o Maven Wrapper do projeto)
 - Postman, Insomnia ou Swagger para testar a API
+- Python 3 para executar o serviço externo mock de pagamento (sem pacotes adicionais)
 
 ## Variáveis de Ambiente
 Antes de iniciar a aplicação, configure as variáveis de ambiente:
@@ -81,6 +82,9 @@ Ao iniciar a aplicação, o sistema cria automaticamente um usuário administrad
 *Use credenciais próprias nas variáveis de ambiente. O projeto ainda não oferece endpoint para troca de senha.*
 
 ## Como Iniciar o Projeto
+Para testar pagamentos, inicie o mock em um terminal separado com
+`python3 tools/pagamento_mock.py` e mantenha-o aberto.
+
 Na raiz do projeto, execute:
 ```bash
 ./mvnw spring-boot:run
@@ -495,13 +499,75 @@ A alteração operacional exige ADMIN, GERENTE, COZINHA ou ATENDENTE.
 
 ### Pagamentos
 
+#### Iniciar o serviço externo mock
+
+O mock é uma API HTTP local em um processo separado, implementada com a biblioteca
+padrão do Python 3. Não usa banco, cartão, PIX ou dinheiro real.
+
+Em um terminal na raiz do projeto:
+```bash
+python3 tools/pagamento_mock.py
+```
+
+Em outro terminal, configure as variáveis da aplicação e execute:
+```bash
+./mvnw spring-boot:run
+```
+
+O backend chama `http://127.0.0.1:9090/pagamentos` por padrão. Para mudar a porta,
+use `python3 tools/pagamento_mock.py --port 9091` e configure
+`PAGAMENTO_MOCK_URL=http://127.0.0.1:9091/pagamentos` no backend.
+O cliente App/Totem/Web continua chamando somente a API Raízes.
+
+Fluxo: cliente → API Raízes → POST HTTP ao mock → retorno do mock → registro
+transacional → resposta ao cliente. `PagamentoServico` depende do contrato
+`ProvedorPagamento`; o adaptador `ProvedorPagamentoMockHttp` executa a chamada.
+
+**Payload enviado ao mock:**
+```json
+{
+  "pedidoId": "uuid-do-pedido",
+  "canalPedido": "TOTEM",
+  "metodo": "MOCK",
+  "valor": 53.82,
+  "moeda": "BRL",
+  "aprovadoMock": true
+}
+```
+
+O valor enviado é apenas a parte externa: total do pedido menos crédito de
+fidelidade escolhido. O header `Idempotency-Key` contém o ID do pedido. Repetir a
+mesma solicitação retorna a mesma transação enquanto o mock estiver em execução;
+reusar a chave com outro payload retorna 409. O mock mantém esse histórico somente
+em memória. A primeira resposta usa HTTP 201 e repetições usam HTTP 200.
+
+**Payload retornado pelo mock:**
+```json
+{
+  "pedidoId": "uuid-do-pedido",
+  "codigoTransacao": "MOCK-uuid",
+  "status": "APROVADO",
+  "valor": 53.82,
+  "moeda": "BRL",
+  "mensagem": "Pagamento mock aprovado."
+}
+```
+
+O backend valida pedido, moeda, valor e status do retorno. Registra os payloads de
+solicitação e resposta e o código HTTP junto ao pagamento. Falha de conexão,
+timeout, erro HTTP ou resposta inválida retorna 502 com
+`PROVEDOR_PAGAMENTO_INDISPONIVEL`, sem criar pagamento, debitar crédito, gerar pontos
+ou mudar o pedido para PAGO. A tentativa pode ser repetida após restabelecer o mock.
+Os tempos máximos são 3 segundos para conexão e 5 segundos para a requisição.
+
 #### Processar pagamento mock
 `POST /pagamentos/pedidos/{pedidoId}`  
 *Acesso: usuário autenticado*
 
 O campo `metodo` aceita `MOCK`, `PIX` e `CARTAO`. Todos os métodos são simulados:
 não há integração com banco, operadora de cartão ou provedor de PIX.
-`aprovadoMock` é obrigatório e determina se o pagamento será aprovado ou recusado.
+`aprovadoMock` é obrigatório e seleciona o cenário no serviço mock. A API Raízes
+usa o status efetivamente retornado pelo provedor para aprovar ou recusar.
 
 **Request aprovado:**
 ```json
@@ -510,7 +576,13 @@ não há integração com banco, operadora de cartão ou provedor de PIX.
   "aprovadoMock": true
 }
 ```
-*Se o pagamento for aprovado, o status do pedido muda para **PAGO**.*
+*Se o provedor aprovar, o status do pedido muda para **PAGO**.*
+
+A resposta ao cliente mantém os campos de pagamento e acrescenta
+`solicitacaoServico`, `retornoServico` e `statusHttpServico`. Os payloads são objetos
+JSON com os campos apresentados acima; o status HTTP da rota Raízes continua 200
+para um pagamento processado, inclusive recusado. A consulta GET devolve os mesmos
+dados registrados, sem chamar novamente o provedor.
 
 **Request recusado:**
 ```json
@@ -660,6 +732,7 @@ A API utiliza uma resposta padronizada para erros.
 - **409** - Conflito de negócio ou de dados
 - **422** - Campos que não atendem à validação
 - **500** - Erro interno inesperado
+- **502** - Serviço de pagamento mock indisponível ou retorno inválido
 
 JSON inválido, enums desconhecidos e UUIDs inválidos retornam 400. Erros de autenticação
 e autorização também seguem o formato `ErroResposta`.
@@ -677,6 +750,9 @@ Os testes configuram suas próprias credenciais fictícias. O agente Mockito é 
 no Maven para evitar depender de autoanexação da JVM.
 
 A API e todos os testes usam H2 em memória. Nenhum serviço de banco externo é necessário.
+Os testes Java iniciam um mock HTTP em porta aleatória; não precisam do processo
+Python. Para testar o mock separado, execute
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools -p 'test_*.py'`.
 Os dados se perdem ao encerrar a aplicação. O schema é gerado pelo Hibernate.
 
 O desconto é arredondado para duas casas com HALF_UP. Preços também precisam ter no
