@@ -27,6 +27,11 @@ public class PagamentoResposta {
         this.respostaMock = respostaMock;
     }
 
+    private BigDecimal valorFidelidade = BigDecimal.ZERO;
+    public void definirValorFidelidade(BigDecimal valor) { this.valorFidelidade = valor; }
+    public BigDecimal getValorFidelidade() { return valorFidelidade; }
+    public BigDecimal getValorExterno() { return valor.subtract(valorFidelidade); }
+
     public UUID getId() {
         return id;
     }

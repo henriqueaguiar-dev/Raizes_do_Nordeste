@@ -22,13 +22,15 @@ public class PagamentoServico {
     private final PagamentoJpaRepositorio pagamentoRepositorio;
     private final PedidoJpaRepositorio pedidoRepositorio;
     private final AuditoriaServico auditoriaServico;
+    private final FidelidadeServico fidelidadeServico;
 
     public PagamentoServico(PagamentoJpaRepositorio pagamentoRepositorio,
             PedidoJpaRepositorio pedidoRepositorio,
-            AuditoriaServico auditoriaServico) {
+            AuditoriaServico auditoriaServico, FidelidadeServico fidelidadeServico) {
         this.pagamentoRepositorio = pagamentoRepositorio;
         this.pedidoRepositorio = pedidoRepositorio;
         this.auditoriaServico = auditoriaServico;
+        this.fidelidadeServico = fidelidadeServico;
     }
 
     @Transactional
@@ -45,6 +47,12 @@ public class PagamentoServico {
         if (pedido.getStatus() != StatusPedido.AGUARDANDO_PAGAMENTO) {
             throw new RegraDeNegocioExcecao("Pedido nao esta aguardando pagamento.");
         }
+
+        java.math.BigDecimal valorFidelidade = requisicao.getValorFidelidade().setScale(2);
+        if (valorFidelidade.compareTo(pedido.getTotal()) > 0) {
+            throw new RegraDeNegocioExcecao("Credito de fidelidade nao pode exceder o total do pedido.");
+        }
+        fidelidadeServico.validarUsoCredito(pedido.getClienteId(), valorFidelidade);
 
         boolean aprovado = Boolean.TRUE.equals(requisicao.getAprovadoMock());
 
@@ -68,6 +76,8 @@ public class PagamentoServico {
                 respostaMock,
                 OffsetDateTime.now());
 
+        pagamento.definirValorFidelidade(valorFidelidade);
+
         PagamentoEntidade pagamentoSalvo = pagamentoRepositorio.save(pagamento);
 
         auditoriaServico.registrar(
@@ -78,6 +88,8 @@ public class PagamentoServico {
                 "Pagamento mock com status " + pagamentoSalvo.getStatus());
 
         if (aprovado) {
+            fidelidadeServico.debitarCredito(pedido.getClienteId(), pagamentoSalvo);
+            fidelidadeServico.registrarCredito(pedido.getClienteId(), pagamentoSalvo);
             pedido.alterarStatus(StatusPedido.PAGO);
             pedidoRepositorio.save(pedido);
         }
@@ -105,7 +117,7 @@ public class PagamentoServico {
     }
 
     private PagamentoResposta paraResposta(PagamentoEntidade pagamento) {
-        return new PagamentoResposta(
+        PagamentoResposta resposta = new PagamentoResposta(
                 pagamento.getId(),
                 pagamento.getPedidoId(),
                 pagamento.getStatus(),
@@ -113,5 +125,7 @@ public class PagamentoServico {
                 pagamento.getValor(),
                 pagamento.getCodigoTransacaoMock(),
                 pagamento.getRespostaMock());
+        resposta.definirValorFidelidade(pagamento.getValorFidelidade());
+        return resposta;
     }
 }

@@ -11,6 +11,10 @@ import com.raizes.raizes_api.infraestrutura.persistencia.entidade.UsuarioEntidad
 
 public interface UsuarioJpaRepositorio extends JpaRepository<UsuarioEntidade, UUID> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select u from UsuarioEntidade u where u.id = :id")
+    Optional<UsuarioEntidade> buscarComBloqueio(@org.springframework.data.repository.query.Param("id") UUID id);
+
     Optional<UsuarioEntidade> findByEmail(String email);
 
     boolean existsByEmail(String email);

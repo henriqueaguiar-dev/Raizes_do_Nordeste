@@ -29,7 +29,7 @@ public class ConfiguracaoSeguranca {
                                                 .requestMatchers(HttpMethod.PUT, "/usuarios/**").hasAnyRole("CLIENTE", "ADMIN")
                                                 .requestMatchers(HttpMethod.DELETE, "/usuarios/**").hasAnyRole("CLIENTE", "ADMIN")
 
-                                                .requestMatchers("/fidelidade/saldo", "/fidelidade/saldo/**").authenticated()
+                                                .requestMatchers("/fidelidade/**").authenticated()
 
                                                 .requestMatchers(HttpMethod.GET, "/produtos/**").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/unidades/**").permitAll()

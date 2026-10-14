@@ -36,13 +36,18 @@ class FidelidadeControladorTest {
     void consultaClienteDoTokenMesmoSeInformadoOutroId() throws Exception {
         UUID clienteId = UUID.randomUUID();
         when(fidelidadeServico.consultarSaldo(clienteId))
-                .thenReturn(new FidelidadeSaldoResposta(clienteId, 20));
+                .thenReturn(new FidelidadeSaldoResposta(clienteId, 120, 100, new java.math.BigDecimal("1.00"), 20, new java.math.BigDecimal("1.00")));
         mockMvc.perform(get("/fidelidade/saldo")
                         .param("clienteId", UUID.randomUUID().toString())
                         .with(jwt().authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CLIENTE")).jwt(token -> token.subject(clienteId.toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clienteId").value(clienteId.toString()))
-                .andExpect(jsonPath("$.pontos").value(20));
+                .andExpect(jsonPath("$.restante").value(20))
+                .andExpect(jsonPath("$.pontosGanhos").value(120))
+                .andExpect(jsonPath("$.pontosConvertidos").value(100))
+                .andExpect(jsonPath("$.creditoConvertido").value(1.00))
+                .andExpect(jsonPath("$.saldoCredito").value(1.00))
+                .andExpect(jsonPath("$.pontos").doesNotExist());
     }
 
     @ParameterizedTest
@@ -53,7 +58,7 @@ class FidelidadeControladorTest {
         mockMvc.perform(get("/fidelidade/saldo/{clienteId}", id)
                 .with(jwt().jwt(t -> t.subject(id.toString()).claim("perfil", perfil))
                         .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + perfil))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.pontos").value(5));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.restante").value(5));
     }
 
     @Test
@@ -70,7 +75,7 @@ class FidelidadeControladorTest {
         mockMvc.perform(get("/fidelidade/saldo/{clienteId}", clienteId)
                         .with(jwt().authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CLIENTE")).jwt(token -> token.subject(clienteId.toString()).claim("perfil", "CLIENTE"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pontos").value(15));
+                .andExpect(jsonPath("$.restante").value(15));
     }
 
     @Test
@@ -83,7 +88,7 @@ class FidelidadeControladorTest {
                                 .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clienteId").value(clienteId.toString()))
-                .andExpect(jsonPath("$.pontos").value(30));
+                .andExpect(jsonPath("$.restante").value(30));
     }
 
     @ParameterizedTest
@@ -101,5 +106,23 @@ class FidelidadeControladorTest {
         mockMvc.perform(get("/fidelidade/saldo/{clienteId}", UUID.randomUUID()))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(fidelidadeServico);
+    }
+
+    @Test
+    void resgateEHistoricoExigemAutenticacao() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/fidelidade/resgates"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/fidelidade/resgates")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(fidelidadeServico);
+    }
+
+    @Test
+    void resgateUsaTitularDoTokenIgnorandoIdEnviado() throws Exception {
+        UUID titular=UUID.randomUUID();
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/fidelidade/resgates")
+                .param("clienteId",UUID.randomUUID().toString())
+                .with(jwt().jwt(t -> t.subject(titular.toString()))))
+                .andExpect(status().isCreated());
+        org.mockito.Mockito.verify(fidelidadeServico).resgatar(titular);
     }
 }

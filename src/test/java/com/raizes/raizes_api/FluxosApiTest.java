@@ -104,13 +104,13 @@ class FluxosApiTest {
         UUID adminId = UUID.fromString(campo(enviar("/auth/login","{\"email\":\"admin@teste.local\",\"senha\":\"SenhaTeste123\"}",null,200),"usuarioId"));
         assertTrue(auditorias.findAll().stream().anyMatch(a -> a.getRecursoId().toString().equals(campo(pag,"id")) && a.getUsuarioId().equals(adminId)));
         enviar("/pagamentos/pedidos/"+id,"{\"metodo\":\"MOCK\",\"aprovadoMock\":true}",c.cliente(),409);
-        mvc.perform(get("/fidelidade/saldo").header("Authorization","Bearer "+c.cliente())).andExpect(jsonPath("$.pontos").value(53));
+        mvc.perform(get("/fidelidade/saldo").header("Authorization","Bearer "+c.cliente())).andExpect(jsonPath("$.restante").value(53));
     }
     @Test void recusaMantemPedidoENaoGeraPontos() throws Exception {
         Cenario c=preparar(10,"10.00");String id=campo(criar(c,"APP"),"id");
         enviar("/pagamentos/pedidos/"+id,"{\"metodo\":\"MOCK\",\"aprovadoMock\":false}",c.cliente(),200);
         assertEquals("AGUARDANDO_PAGAMENTO",pedidos.findById(UUID.fromString(id)).orElseThrow().getStatus().name());
-        mvc.perform(get("/fidelidade/saldo").header("Authorization","Bearer "+c.cliente())).andExpect(jsonPath("$.pontos").value(0));
+        mvc.perform(get("/fidelidade/saldo").header("Authorization","Bearer "+c.cliente())).andExpect(jsonPath("$.restante").value(0));
         enviar("/pagamentos/pedidos/"+id,"{\"metodo\":\"MOCK\",\"aprovadoMock\":true}",c.cliente(),409);
     }
     @Test void statusExigeOperadorETransicaoValida() throws Exception {
@@ -286,4 +286,133 @@ class FluxosApiTest {
             assertNotEquals(a.get(15,TimeUnit.SECONDS),b.get(15,TimeUnit.SECONDS));assertEquals(0,estoque(c));
         } finally {pool.shutdownNow();}
     }
+
+    @Autowired com.raizes.raizes_api.aplicacao.servico.FidelidadeServico fidelidadeServico;
+    @Autowired UsuarioJpaRepositorio usuariosFidelidade;
+    @Autowired FidelidadeCreditoJpaRepositorio creditosFidelidade;
+
+    void mudarConsentimento(Cenario c, UUID clienteId, boolean consentimento) throws Exception {
+        var usuario=usuariosFidelidade.findById(clienteId).orElseThrow();
+        mvc.perform(put("/usuarios/"+clienteId).header("Authorization","Bearer "+c.cliente())
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(java.util.Map.of(
+                        "nome",usuario.getNome(),"email",usuario.getEmail(),"consentimentoLgpd",consentimento))))
+                .andExpect(status().isOk());
+    }
+
+    @Test void fidelidadeRespeitaConsentimentoNoPagamentoESemCreditoRetroativo() throws Exception {
+        Cenario c=preparar(10,"60.00");
+        var primeiro=json.readTree(criar(c,"BALCAO"));
+        UUID clienteId=UUID.fromString(primeiro.get("clienteId").asText());
+        String pagamento=json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true));
+        mudarConsentimento(c,clienteId,false);
+        enviar("/pagamentos/pedidos/"+primeiro.get("id").asText(),pagamento,c.cliente(),200);
+        assertEquals(0,fidelidadeServico.consultarSaldo(clienteId).pontos());
+        enviar("/fidelidade/resgates","",c.cliente(),409);
+        mudarConsentimento(c,clienteId,true);
+        assertEquals(0,fidelidadeServico.consultarSaldo(clienteId).pontos());
+        String segundo=campo(criar(c,"BALCAO"),"id");
+        enviar("/pagamentos/pedidos/"+segundo,pagamento,c.cliente(),200);
+        assertEquals(20,fidelidadeServico.consultarSaldo(clienteId).pontos());
+        assertEquals(new java.math.BigDecimal("1.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+        mudarConsentimento(c,clienteId,false);
+        enviar("/fidelidade/resgates","",c.cliente(),409);
+        assertEquals(20,fidelidadeServico.consultarSaldo(clienteId).pontos());
+        assertEquals(new java.math.BigDecimal("1.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+        mudarConsentimento(c,clienteId,true);
+        enviar("/fidelidade/resgates","",c.cliente(),409);
+        assertEquals(20,fidelidadeServico.consultarSaldo(clienteId).pontos());
+        mvc.perform(get("/fidelidade/resgates").header("Authorization","Bearer "+c.cliente()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/fidelidade/resgates").header("Authorization","Bearer "+cliente()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test void resgatesConcorrentesNaoGastamMesmoSaldo() throws Exception {
+        Cenario c=preparar(2,"60.00");
+        var pedido=json.readTree(criar(c,"BALCAO"));
+        UUID clienteId=UUID.fromString(pedido.get("clienteId").asText());
+        enviar("/pagamentos/pedidos/"+pedido.get("id").asText(),
+                json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true)),c.cliente(),200);
+        // Simula pontos pendentes de conversao para verificar o endpoint manual.
+        creditosFidelidade.save(new FidelidadeCreditoEntidade(clienteId,UUID.randomUUID(),new java.math.BigDecimal("100.00")));
+        ExecutorService pool=Executors.newFixedThreadPool(2);
+        CountDownLatch inicio=new CountDownLatch(1);
+        Callable<Boolean> resgatar=()->{inicio.await();try {fidelidadeServico.resgatar(clienteId);return true;}
+            catch(com.raizes.raizes_api.dominio.excecao.RegraDeNegocioExcecao e){return false;}};
+        try {
+            var a=pool.submit(resgatar);var b=pool.submit(resgatar);inicio.countDown();
+            assertNotEquals(a.get(15,TimeUnit.SECONDS),b.get(15,TimeUnit.SECONDS));
+            assertEquals(20,fidelidadeServico.consultarSaldo(clienteId).pontos());
+            assertEquals(2,fidelidadeServico.listarResgates(clienteId).size());
+        } finally {pool.shutdownNow();}
+    }
+
+    @Test void creditoAutomaticoPodePagarPedidoInteiroSemGerarNovosPontos() throws Exception {
+        Cenario c=preparar(10,"100.00");
+        var pedido=json.readTree(enviar("/pedidos",corpoPedido(c,"BALCAO",1),c.cliente(),201));
+        UUID id=UUID.fromString(pedido.get("clienteId").asText());
+        enviar("/pagamentos/pedidos/"+pedido.get("id").asText(),
+                json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true)),c.cliente(),200);
+        assertEquals(0,fidelidadeServico.consultarSaldo(id).pontos());
+        assertEquals(new java.math.BigDecimal("1.00"),fidelidadeServico.consultarSaldo(id).saldoCredito());
+        mvc.perform(put("/produtos/"+c.produto()).header("Authorization","Bearer "+c.admin()).contentType("application/json")
+                .content(json.writeValueAsString(java.util.Map.of("nome","Produto","descricao","Teste","preco",1,"ativo",true))))
+                .andExpect(status().isOk());
+        String proximo=campo(enviar("/pedidos",corpoPedido(c,"BALCAO",1),c.cliente(),201),"id");
+        var pagamento=json.readTree(enviar("/pagamentos/pedidos/"+proximo,
+                json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true,"valorFidelidade",1)),c.cliente(),200));
+        assertEquals(1,pagamento.get("valor").asDouble(),0.001);
+        assertEquals(1,pagamento.get("valorFidelidade").asDouble(),0.001);
+        assertEquals(0,pagamento.get("valorExterno").asDouble(),0.001);
+        assertEquals(0,fidelidadeServico.consultarSaldo(id).pontos());
+        assertEquals(new java.math.BigDecimal("0.00"),fidelidadeServico.consultarSaldo(id).saldoCredito());
+        enviar("/pagamentos/pedidos/"+proximo,
+                json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true,"valorFidelidade",1)),c.cliente(),409);
+    }
+
+    @Test void creditoNaoEConsumidoEmRecusaEValidaSaldoConsentimentoEValores() throws Exception {
+        Cenario c=preparar(10,"60.00");
+        var primeiro=json.readTree(criar(c,"BALCAO"));
+        UUID id=UUID.fromString(primeiro.get("clienteId").asText());
+        enviar("/pagamentos/pedidos/"+primeiro.get("id").asText(),
+                json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true)),c.cliente(),200);
+        String proximo=campo(criar(c,"BALCAO"),"id");
+        String rota="/pagamentos/pedidos/"+proximo;
+        enviar(rota,json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true,"valorFidelidade",2)),c.cliente(),409);
+        enviar(rota,json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true,"valorFidelidade",121)),c.cliente(),409);
+        enviar(rota,json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true,"valorFidelidade",-1)),c.cliente(),422);
+        enviar(rota,json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true,"valorFidelidade",0.001)),c.cliente(),422);
+        mudarConsentimento(c,id,false);
+        enviar(rota,json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true,"valorFidelidade",1)),c.cliente(),409);
+        mudarConsentimento(c,id,true);
+        enviar(rota,json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",false,"valorFidelidade",1)),c.cliente(),200);
+        assertEquals(new java.math.BigDecimal("1.00"),fidelidadeServico.consultarSaldo(id).saldoCredito());
+        assertEquals(20,fidelidadeServico.consultarSaldo(id).pontos());
+    }
+
+    @Test void pagamentosConcorrentesNaoGastamMesmoCredito() throws Exception {
+        Cenario c=preparar(10,"60.00");
+        var primeiro=json.readTree(criar(c,"BALCAO"));
+        UUID id=UUID.fromString(primeiro.get("clienteId").asText());
+        enviar("/pagamentos/pedidos/"+primeiro.get("id").asText(),
+                json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true)),c.cliente(),200);
+        mvc.perform(put("/produtos/"+c.produto()).header("Authorization","Bearer "+c.admin()).contentType("application/json")
+                .content(json.writeValueAsString(java.util.Map.of("nome","Produto","descricao","Teste","preco",1,"ativo",true))))
+                .andExpect(status().isOk());
+        UUID a=UUID.fromString(campo(criar(c,"BALCAO"),"id"));
+        UUID b=UUID.fromString(campo(criar(c,"BALCAO"),"id"));
+        var req=json.readValue(json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true,"valorFidelidade",1)),
+                com.raizes.raizes_api.api.dto.requisicao.ProcessarPagamentoRequisicao.class);
+        ExecutorService pool=Executors.newFixedThreadPool(2);CountDownLatch inicio=new CountDownLatch(1);
+        java.util.function.Function<UUID,Boolean> pagar=pedidoId->{try {inicio.await();pagamentoServicoFidelidade.processar(pedidoId,req,id,"CLIENTE");return true;}
+            catch(com.raizes.raizes_api.dominio.excecao.RegraDeNegocioExcecao e){return false;}
+            catch(InterruptedException e){Thread.currentThread().interrupt();throw new RuntimeException(e);}};
+        try {
+            var x=pool.submit(()->pagar.apply(a));var y=pool.submit(()->pagar.apply(b));inicio.countDown();
+            assertNotEquals(x.get(15,TimeUnit.SECONDS),y.get(15,TimeUnit.SECONDS));
+            assertEquals(new java.math.BigDecimal("0.00"),fidelidadeServico.consultarSaldo(id).saldoCredito());
+            assertEquals(21,fidelidadeServico.consultarSaldo(id).pontos());
+        } finally {pool.shutdownNow();}
+    }
+    @Autowired com.raizes.raizes_api.aplicacao.servico.PagamentoServico pagamentoServicoFidelidade;
 }

@@ -533,29 +533,96 @@ não permite nova tentativa nesse pedido. A auditoria registra o usuário que ex
 
 ### Fidelidade
 
-#### Consultar saldo de pontos
-`GET /fidelidade/saldo`  
-*Acesso: usuário autenticado*
+O programa usa `consentimentoLgpd` como adesão à fidelidade nesta versão.
+Informe `true` no cadastro ou no `PUT /usuarios/{id}` para participar; `false`
+retira a participação. O PUT continua exigindo nome, email e consentimento.
+O consentimento é consultado no banco, sem necessidade de renovar o JWT.
 
-*Regra adotada: 1 ponto para cada R$ 1,00 pago em pedido aprovado.*
+**Acúmulo:** 1 ponto por R$ 1,00 da parte paga pelo mock em pagamentos aprovados,
+com usuário ativo e consentimento. Centavos acumulam entre pagamentos elegíveis.
+Pagamentos recusados e pagamentos feitos sem consentimento não geram pontos;
+compras anteriores à adesão não recebem crédito retroativo.
 
-O saldo considera a soma dos pagamentos aprovados do usuário identificado pelo JWT.
-Os centavos acumulam entre compras: R$ 10,50 + R$ 9,50 geram 20 pontos.
-Uma soma de R$ 10,90 gera 10 pontos. Pagamentos recusados não geram pontos.
-Envie `Authorization: Bearer SEU_TOKEN`; não é necessário informar o ID do cliente.
+**Conversão automática:** a cada **100 pontos, o usuário ganha R$ 1,00 de crédito**
+para pagar pedidos na lanchonete. Todos os blocos completos são convertidos no
+pagamento aprovado, mantendo o restante dos pontos. Exemplo: 250 pontos geram
+R$ 2,00 de crédito e deixam 50 pontos. Cada conversão é registrada no histórico.
+A parcela paga com crédito de fidelidade não gera novos pontos.
 
-Para consultar uma conta específica, use `GET /fidelidade/saldo/{clienteId}`.
-Somente o titular da conta e usuários com perfil **ADMIN** podem consultar esse saldo.
-Outros usuários recebem **403 Forbidden**. Ambas as rotas exigem autenticação;
-`GET /fidelidade/saldo` sempre retorna o saldo do próprio usuário autenticado.
+Retirar o consentimento bloqueia novos ganhos, conversões e uso do crédito.
+Pontos, créditos e histórico anteriores são preservados e podem ser consultados.
+Ao aderir novamente, os saldos voltam a poder ser usados. Não há atribuição
+retroativa de pontos a pagamentos anteriores a esta implementação.
 
-**Exemplo de retorno:**
+#### Consultar saldo
+`GET /fidelidade/saldo` — próprio usuário autenticado.
+
 ```json
 {
   "clienteId": "uuid",
-  "pontos": 90
+  "pontosGanhos": 250,
+  "pontosConvertidos": 200,
+  "creditoConvertido": 2.00,
+  "restante": 50,
+  "saldoCredito": 2.00
 }
 ```
+
+Os campos são acumulados da conta: `pontosGanhos` mostra o total ganho,
+`pontosConvertidos` mostra quantos já viraram crédito, `creditoConvertido` informa
+esse valor em reais e `restante` mostra os pontos ainda não convertidos.
+`saldoCredito` é o crédito disponível após pagamentos; pode ser menor que o total
+convertido. O campo JSON anterior `pontos` foi substituído por `restante`.
+
+`GET /fidelidade/saldo/{clienteId}` permite consulta pelo titular ou ADMIN.
+Outros usuários recebem 403; conta inexistente retorna 404.
+
+#### Pagar com crédito de fidelidade
+`POST /pagamentos/pedidos/{pedidoId}`
+
+```json
+{
+  "metodo": "MOCK",
+  "aprovadoMock": true,
+  "valorFidelidade": 1.00
+}
+```
+
+`valorFidelidade` é opcional (padrão zero), não negativo e com até duas casas
+decimais. Não pode ultrapassar o crédito disponível nem o total do pedido.
+A resposta e o registro do pagamento distinguem:
+- `valor`: total do pedido;
+- `valorFidelidade`: parcela escolhida em crédito;
+- `valorExterno`: restante pago pelo mock.
+
+É possível pagar parte ou todo o pedido com crédito. O débito ocorre apenas
+quando o pagamento é aprovado; recusa preserva o saldo. Todas as etapas ocorrem
+na mesma transação, com bloqueio por usuário para impedir gasto simultâneo do
+mesmo crédito. Usuário inativo ou sem consentimento não pode usar crédito.
+
+#### Consultar conversões
+`GET /fidelidade/resgates` — histórico do próprio titular, do mais recente para o
+mais antigo. Retorna `[]` quando não houver conversões.
+
+```json
+[
+  {
+    "id": "uuid-da-conversao",
+    "clienteId": "uuid-do-cliente",
+    "pontosConsumidos": 200,
+    "beneficio": "CREDITO_PAGAMENTO",
+    "codigoResgate": "FID-uuid-da-conversao",
+    "criadoEm": "2026-10-14T13:00:00-04:00",
+    "valorCredito": 2.00
+  }
+]
+```
+
+`POST /fidelidade/resgates` permanece disponível, sem corpo, para converter
+manualmente 100 pontos pendentes em R$ 1,00. No fluxo normal a conversão já é
+automática e não precisa desse POST. Saldo inferior a 100 ou ausência de
+consentimento retorna 409. A regra anterior de brinde foi substituída por crédito;
+registros antigos de brinde não representam crédito monetário.
 
 ---
 
@@ -614,7 +681,8 @@ Os dados se perdem ao encerrar a aplicação. O schema é gerado pelo Hibernate.
 
 O desconto é arredondado para duas casas com HALF_UP. Preços também precisam ter no
 máximo duas casas decimais. Pedidos cancelados não estornam estoque nem pagamentos;
-os pontos seguem a soma dos pagamentos aprovados. Essas são as regras atuais do mock.
+os ganhos e débitos de fidelidade já registrados são preservados, mesmo em pedidos
+cancelados; não há devolução automática de crédito nessa situação. Essas são as regras atuais do mock.
 
 ## Testes automáticos no GitHub (CI)
 

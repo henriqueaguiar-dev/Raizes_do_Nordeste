@@ -47,6 +47,13 @@ public class PagamentoEntidade {
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm;
 
+    @Column(name = "valor_fidelidade", nullable = false, precision = 10, scale = 2)
+    private BigDecimal valorFidelidade = BigDecimal.ZERO;
+
+    public void definirValorFidelidade(BigDecimal valor) { this.valorFidelidade = valor; }
+    public BigDecimal getValorFidelidade() { return valorFidelidade; }
+    public BigDecimal getValorExterno() { return valor.subtract(valorFidelidade); }
+
     protected PagamentoEntidade() {
     }
 

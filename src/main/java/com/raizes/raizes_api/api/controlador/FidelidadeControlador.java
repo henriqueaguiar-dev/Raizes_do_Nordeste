@@ -1,6 +1,11 @@
 package com.raizes.raizes_api.api.controlador;
 
 import com.raizes.raizes_api.api.dto.resposta.FidelidadeSaldoResposta;
+import com.raizes.raizes_api.api.dto.resposta.FidelidadeResgateResposta;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.http.HttpStatus;
+import java.util.List;
 import com.raizes.raizes_api.aplicacao.servico.FidelidadeServico;
 import com.raizes.raizes_api.dominio.excecao.AcessoNegadoExcecao;
 
@@ -27,6 +32,17 @@ public class FidelidadeControlador {
 
     public FidelidadeControlador(FidelidadeServico fidelidadeServico) {
         this.fidelidadeServico = fidelidadeServico;
+    }
+
+    @PostMapping("/resgates")
+    @ResponseStatus(HttpStatus.CREATED)
+    public FidelidadeResgateResposta resgatar(@AuthenticationPrincipal Jwt jwt) {
+        return fidelidadeServico.resgatar(UUID.fromString(jwt.getSubject()));
+    }
+
+    @GetMapping("/resgates")
+    public List<FidelidadeResgateResposta> listarResgates(@AuthenticationPrincipal Jwt jwt) {
+        return fidelidadeServico.listarResgates(UUID.fromString(jwt.getSubject()));
     }
 
     @GetMapping("/saldo")
