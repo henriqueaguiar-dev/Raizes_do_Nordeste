@@ -1,0 +1,1258 @@
+{
+  "info": {
+    "_postman_id": "e6adc608-0539-4ddd-80e7-3d5df9c70552",
+    "name": "Raízes API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "47802774",
+    "_collection_link": "https://go.postman.co/collection/47802774-e6adc608-0539-4ddd-80e7-3d5df9c70552?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "🔐 ADM Autenticação",
+      "item": [
+        {
+          "name": "Admin Login Senha Errada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body has required fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"usuarioId\");\n    pm.expect(json).to.have.property(\"nome\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"perfil\");\n    pm.expect(json).to.have.property(\"accessToken\");\n    pm.expect(json).to.have.property(\"tokenType\");\n    pm.expect(json).to.have.property(\"expiresIn\");\n});\n\npm.test(\"tokenType equals 'Bearer'\", function () {\n    const json = pm.response.json();\n    pm.expect(json.tokenType).to.eql(\"Bearer\");\n});\n\npm.test(\"accessToken is a non-empty string\", function () {\n    const json = pm.response.json();\n    pm.expect(json.accessToken).to.be.a(\"string\").and.to.have.length.above(0);\n});\n\npm.test(\"expiresIn is a number\", function () {\n    const json = pm.response.json();\n    pm.expect(json.expiresIn).to.be.a(\"number\");\n});\n\npm.environment.set(\"jwt_token\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@raizes.com\",\n  \"senha\": \"Erro\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body has required fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"usuarioId\");\n    pm.expect(json).to.have.property(\"nome\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"perfil\");\n    pm.expect(json).to.have.property(\"accessToken\");\n    pm.expect(json).to.have.property(\"tokenType\");\n    pm.expect(json).to.have.property(\"expiresIn\");\n});\n\npm.test(\"tokenType equals 'Bearer'\", function () {\n    const json = pm.response.json();\n    pm.expect(json.tokenType).to.eql(\"Bearer\");\n});\n\npm.test(\"accessToken is a non-empty string\", function () {\n    const json = pm.response.json();\n    pm.expect(json.accessToken).to.be.a(\"string\").and.to.have.length.above(0);\n});\n\npm.test(\"expiresIn is a number\", function () {\n    const json = pm.response.json();\n    pm.expect(json.expiresIn).to.be.a(\"number\");\n});\n\npm.environment.set(\"jwt_token\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@raizes.com\",\n  \"senha\": \"Admin@123\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏢 Unidade",
+      "item": [
+        {
+          "name": "Criar Unidade Com Token Cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Unidade criada com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.environment.set(\"unidade_id\", resposta.id); // Salva o UUID da unidade\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{cliente_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Asa Norte\",\n  \"endereco\": \"SQN 415\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/unidades",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "unidades"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar Unidade",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Unidade criada com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.environment.set(\"unidade_id\", resposta.id); // Salva o UUID da unidade\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Asa Norte\",\n  \"endereco\": \"SQN 415\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/unidades",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "unidades"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Unidades",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Unidades listadas com sucesso\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const resposta = pm.response.json();",
+                  "    pm.expect(resposta).to.be.an('array');",
+                  "    pm.expect(resposta.length).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/unidades",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "unidades"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👫Criar Usuários",
+      "item": [
+        {
+          "name": "Criar Usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Cliente cadastrado com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.expect(resposta.perfil).to.eql(\"CLIENTE\");\n    pm.expect(resposta.ativo).to.be.true;\n    \n    // Armazena o ID do cliente se necessário\n    pm.environment.set(\"cliente_id\", resposta.id);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Maria Cliente\",\n  \"email\": \"maria1@exemplo.com\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"CLIENTE\",\n  \"consentimentoLgpd\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar Usuario Interno",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Usuário Interno cadastrado com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.expect(resposta.perfil).to.eql(\"GERENTE\", \"ATENDENTE\", \"COZINHA\");\n    pm.expect(resposta.ativo).to.be.true;\n    \n    // Armazena o ID do cliente se necessário\n    pm.environment.set(\"usuario_interno_id\", resposta.id);\n})\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Maria Cliente\",\n  \"email\": \"gerente@exemplo.com\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"GERENTE\",\n  \"consentimentoLgpd\": true,\n  \"unidadeId\": \"{{unidade_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios/internos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "internos"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔐 User Autenticação",
+      "item": [
+        {
+          "name": "Cliente Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body has required fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"usuarioId\");\n    pm.expect(json).to.have.property(\"nome\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"perfil\");\n    pm.expect(json).to.have.property(\"accessToken\");\n    pm.expect(json).to.have.property(\"tokenType\");\n    pm.expect(json).to.have.property(\"expiresIn\");\n});\n\npm.test(\"tokenType equals 'Bearer'\", function () {\n    const json = pm.response.json();\n    pm.expect(json.tokenType).to.eql(\"Bearer\");\n});\n\npm.test(\"accessToken is a non-empty string\", function () {\n    const json = pm.response.json();\n    pm.expect(json.accessToken).to.be.a(\"string\").and.to.have.length.above(0);\n});\n\npm.test(\"expiresIn is a number\", function () {\n    const json = pm.response.json();\n    pm.expect(json.expiresIn).to.be.a(\"number\");\n});\n\npm.environment.set(\"cliente_token\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"maria1@exemplo.com\",\n  \"senha\": \"Senha@123\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Usuário Interno Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body has required fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"usuarioId\");\n    pm.expect(json).to.have.property(\"nome\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"perfil\");\n    pm.expect(json).to.have.property(\"accessToken\");\n    pm.expect(json).to.have.property(\"tokenType\");\n    pm.expect(json).to.have.property(\"expiresIn\");\n});\n\npm.test(\"tokenType equals 'Bearer'\", function () {\n    const json = pm.response.json();\n    pm.expect(json.tokenType).to.eql(\"Bearer\");\n});\n\npm.test(\"accessToken is a non-empty string\", function () {\n    const json = pm.response.json();\n    pm.expect(json.accessToken).to.be.a(\"string\").and.to.have.length.above(0);\n});\n\npm.test(\"expiresIn is a number\", function () {\n    const json = pm.response.json();\n    pm.expect(json.expiresIn).to.be.a(\"number\");\n});\n\npm.environment.set(\"usuario_interno_token\", pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"gerente@exemplo.com\",\n  \"senha\": \"Senha@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👥 Usuários",
+      "item": [
+        {
+          "name": "Cliente",
+          "item": [
+            {
+              "name": "Atualizar Usuário",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Usuário atualizado com sucesso\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const resposta = pm.response.json();",
+                      "    pm.expect(resposta.perfil).to.eql(\"CLIENTE\");",
+                      "    pm.expect(resposta.ativo).to.be.true;",
+                      "    pm.environment.set(\"cliente_id\", resposta.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{cliente_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nome\": \"Carla Cliente\",\n  \"email\": \"maria1@exemplo.com\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"CLIENTE\",\n  \"consentimentoLgpd\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/usuarios/{{cliente_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "{{cliente_id}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Consultar Usuários",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const response = pm.response.json();\n\npm.collectionVariables.set(\"cliente_id\", response.id);\n\nconsole.log(\"Cliente ID salvo:\", response.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/usuarios",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "usuarios"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Usuário Interno",
+          "item": [
+            {
+              "name": "Atualizar Usuário Interno",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Usuário Interno atualizado com sucesso\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const resposta = pm.response.json();",
+                      "    pm.expect(resposta.perfil).to.eql(\"GERENTE\");",
+                      "    pm.expect(resposta.ativo).to.be.true;",
+                      "    pm.environment.set(\"usuario_interno_id\", resposta.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nome\": \"João Carlo\",\n  \"email\": \"carlo@exemplo.com\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"GERENTE\",\n  \"consentimentoLgpd\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/usuarios/{{usuario_interno_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "{{usuario_interno_id}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Consultar Usuários Interno",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const response = pm.response.json();\n\npm.collectionVariables.set(\"usuario_interno_id\", response.id);\n\nconsole.log(\"Usuario interno ID salvo:\", response.id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/usuarios/internos",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "internos"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📦 Produtos",
+      "item": [
+        {
+          "name": "Criar Produto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Produto criado com sucesso\", function () {\n    pm.response.to.have.status(201); // Ou 200, conforme seu retorno\n    \n    const resposta = pm.response.json();\n    pm.environment.set(\"produto_id\", resposta.id); // Salva o UUID do produto\n});\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Bolinho de Carne\",\n  \"descricao\": \"Carne seca\",\n  \"preco\": 15.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/produtos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "produtos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Produtos",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/produtos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "produtos"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🛍️ Estoque",
+      "item": [
+        {
+          "name": "Incluir Estoque",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Carga inicial de estoque realizada\", function () {\n    pm.response.to.have.status(200); // Ajuste para 201 se sua API retornar CREATED\n});\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"unidadeId\": \"{{unidade_id}}\",\n    \"produtoId\": \"{{produto_id}}\",\n    \"quantidade\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8080/estoques/entradas",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "estoques",
+                "entradas"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Saida Estoque",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unidadeId\": \"{{unidade_id}}\",\n  \"produtoId\": \"{{produto_id}}\",\n  \"quantidade\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/estoques/saidas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estoques",
+                "saidas"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verificar Estoque por Unidade",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/estoques/unidades/{{unidade_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estoques",
+                "unidades",
+                "{{unidade_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verificar Estoque de 1 Produto por Unidade",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/estoques/unidades/{{unidade_id}}/produtos/{{produto_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estoques",
+                "unidades",
+                "{{unidade_id}}",
+                "produtos",
+                "{{produto_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verificar Estoque Estoque Total da Rede",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/estoques/total",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estoques",
+                "total"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🛒 Pedidos",
+      "item": [
+        {
+          "name": "Criar Pedido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Pedido criado com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.environment.set(\"pedido_id\", resposta.id); // Salva o UUID do pedido\n    \n    // Teste de Regra de Negócio: Validar o desconto de 10%\n    const subtotal = resposta.subtotal;\n    const descontoEsperado = subtotal * 0.10;\n    pm.expect(resposta.valorDesconto).to.eql(descontoEsperado);\n});\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{cliente_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unidadeId\": \"{{unidade_id}}\",\n  \"canalPedido\": \"APP\",\n  \"formaPagamento\": \"MOCK\",\n  \"itens\": [\n    {\n      \"produtoId\": \"{{produto_id}}\",\n      \"quantidade\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pedidos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pedidos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Status de todos Pedidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Consulta de status do pedido realizada\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const resposta = pm.response.json();",
+                  "    pm.expect(resposta).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/pedidos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pedidos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Status Pedido por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Consulta de status do pedido realizada\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "",
+                  "    const resposta = pm.response.json();",
+                  "    // Valida se o status mudou para EM_PREPARO após o passo de pagamento",
+                  "    pm.expect(resposta.status).to.eql(\"EM_PREPARO\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/pedidos/{{pedido_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pedidos",
+                "{{pedido_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💰 Pagamento",
+      "item": [
+        {
+          "name": "Pagamento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metodo\": \"MOCK\",\n  \"aprovadoMock\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pagamentos/pedidos/{{pedido_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pagamentos",
+                "pedidos",
+                "{{pedido_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Processar Pagamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Pagamento processado com sucesso\", function () {\n    pm.response.to.have.status(200);\n});\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"EM_PREPARO\"\n    \n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pedidos/{{pedido_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pedidos",
+                "{{pedido_id}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🪪 Fidelidade",
+      "item": [
+        {
+          "name": "Consulta Pontos Usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Saldo de pontos consultado com sucesso\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const resposta = pm.response.json();",
+                  "    pm.expect(resposta.pontos).to.be.a('number');",
+                  "    console.log(\"Pontos acumulados do cliente: \" + resposta.pontos);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{cliente_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/fidelidade/saldo/{{cliente_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "fidelidade",
+                "saldo",
+                "{{cliente_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Deletar",
+      "item": [
+        {
+          "name": "Deletar Produto",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/produtos/{{produto_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "produtos",
+                "{{produto_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar Usuário Interno",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Usuário Interno desativado com sucesso\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{usuario_interno_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{usuario_interno_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deletar Usuário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Usuário desativado com sucesso\", function () {\n    pm.response.to.have.status(204);\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios/{{cliente_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{cliente_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "cliente_id",
+      "value": ""
+    },
+    {
+      "key": "usuario_interno_id",
+      "value": ""
+    }
+  ]
+}

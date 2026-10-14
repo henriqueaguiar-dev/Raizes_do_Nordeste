@@ -33,6 +33,7 @@ class FluxosApiTest {
     @Autowired PedidoJpaRepositorio pedidos;
     @Autowired PagamentoJpaRepositorio pagamentos;
     @Autowired AuditoriaJpaRepositorio auditorias;
+    @Autowired ProdutoUnidadeJpaRepositorio cardapios;
     @Autowired PedidoServico pedidoServico;
     @Autowired com.raizes.raizes_api.aplicacao.servico.EstoqueServico estoqueServico;
 
@@ -56,7 +57,14 @@ class FluxosApiTest {
         String u = campo(enviar("/unidades", "{\"nome\":\"Unidade\",\"endereco\":\"Rua teste\"}", a, 201), "id");
         String p = campo(enviar("/produtos", "{\"nome\":\"Produto\",\"descricao\":\"Teste\",\"preco\":" + preco + "}", a, 201), "id");
         enviar("/estoques/entradas", movimento(u, p, quantidade), a, 200);
+        configurarCardapio(a, u, p, true, 200);
         return new Cenario(a, cliente(), u, p);
+    }
+    void configurarCardapio(String token, String unidade, String produto, boolean ativo, int codigo) throws Exception {
+        mvc.perform(put("/unidades/"+unidade+"/cardapio/produtos/"+produto)
+                .header("Authorization", "Bearer "+token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"ativo\":"+ativo+"}"))
+                .andExpect(status().is(codigo));
     }
     String movimento(String u, String p, int q) { return "{\"unidadeId\":\""+u+"\",\"produtoId\":\""+p+"\",\"quantidade\":"+q+"}"; }
     String corpoPedido(Cenario c, String canal, int quantidade) {
@@ -153,6 +161,104 @@ class FluxosApiTest {
         enviar("/pedidos",corpoPedido(c,"APP",1),c.cliente(),409);assertEquals(5,estoque(c));
         mvc.perform(delete("/unidades/"+c.unidade()).header("Authorization","Bearer "+c.admin())).andExpect(status().isNoContent());
         mvc.perform(get("/unidades/"+c.unidade())).andExpect(status().isOk()).andExpect(jsonPath("$.ativa").value(false));
+    }
+
+    @Test void cardapioIsolaUnidadesEAtualizaDisponibilidadeAposVenda() throws Exception {
+        Cenario c=preparar(1,"10.00");
+        String outra=campo(enviar("/unidades","{\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
+        enviar("/estoques/entradas",movimento(outra,c.produto(),5),c.admin(),200);
+        mvc.perform(get("/unidades/"+outra+"/cardapio")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/unidades/"+c.unidade()+"/cardapio")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].produtoId").value(c.produto()))
+                .andExpect(jsonPath("$[0].nome").value("Produto"))
+                .andExpect(jsonPath("$[0].descricao").value("Teste"))
+                .andExpect(jsonPath("$[0].preco").value(10.00))
+                .andExpect(jsonPath("$[0].disponivel").value(true));
+        enviar("/pedidos",corpoPedido(c,"APP",1),c.cliente(),201);
+        mvc.perform(get("/unidades/"+c.unidade()+"/cardapio"))
+                .andExpect(jsonPath("$[0].disponivel").value(false));
+        enviar("/pedidos",corpoPedido(c,"APP",1),c.cliente(),409);
+        enviar("/estoques/entradas",movimento(c.unidade(),c.produto(),1),c.admin(),200);
+        mvc.perform(get("/unidades/"+c.unidade()+"/cardapio"))
+                .andExpect(jsonPath("$[0].disponivel").value(true));
+    }
+
+    @Test void produtoSemEstoqueApareceIndisponivelNoCardapio() throws Exception {
+        Cenario c=preparar(1,"10.00");
+        String outra=campo(enviar("/unidades","{\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
+        configurarCardapio(c.admin(),outra,c.produto(),true,200);
+        mvc.perform(get("/unidades/"+outra+"/cardapio")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].disponivel").value(false));
+        assertTrue(estoques.findByUnidadeIdAndProdutoId(UUID.fromString(outra),UUID.fromString(c.produto())).isEmpty());
+    }
+
+    @Test void desabilitarProdutoImpedeVendaApenasNaUnidadeEscolhida() throws Exception {
+        Cenario c=preparar(5,"10.00");
+        String outra=campo(enviar("/unidades","{\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
+        configurarCardapio(c.admin(),outra,c.produto(),true,200);
+        enviar("/estoques/entradas",movimento(outra,c.produto(),5),c.admin(),200);
+        configurarCardapio(c.admin(),c.unidade(),c.produto(),false,200);
+        mvc.perform(get("/unidades/"+c.unidade()+"/cardapio"))
+                .andExpect(jsonPath("$.length()").value(0));
+        enviar("/pedidos",corpoPedido(c,"APP",1),c.cliente(),409);
+        assertEquals(5,estoque(c));
+        enviar("/pedidos",corpoPedido(c,"APP",1).replace(c.unidade(),outra),c.cliente(),201);
+        configurarCardapio(c.admin(),c.unidade(),c.produto(),true,200);
+        configurarCardapio(c.admin(),c.unidade(),c.produto(),true,200);
+        enviar("/pedidos",corpoPedido(c,"APP",1),c.cliente(),201);
+        assertEquals(2,cardapios.findAll().stream().filter(v -> v.getProdutoId().toString().equals(c.produto())).count());
+    }
+
+    @Test void produtoForaDoCardapioDesfazBaixaDeTodosOsItens() throws Exception {
+        Cenario c=preparar(5,"10.00");
+        String fora=campo(enviar("/produtos","{\"nome\":\"Fora\",\"descricao\":\"Teste\",\"preco\":10.00}",c.admin(),201),"id");
+        enviar("/estoques/entradas",movimento(c.unidade(),fora,5),c.admin(),200);
+        String corpo=corpoPedido(c,"APP",1).replace("}]}","},{\"produtoId\":\""+fora+"\",\"quantidade\":1}]}");
+        enviar("/pedidos",corpo,c.cliente(),409);
+        assertEquals(5,estoque(c));
+        assertEquals(5,estoques.findByUnidadeIdAndProdutoId(UUID.fromString(c.unidade()),UUID.fromString(fora))
+                .orElseThrow().getQuantidadeDisponivel());
+    }
+
+    @Test void cardapioOcultaProdutoInativoERejeitaUnidadeInativa() throws Exception {
+        Cenario c=preparar(1,"10.00");
+        mvc.perform(delete("/produtos/"+c.produto()).header("Authorization","Bearer "+c.admin()))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/unidades/"+c.unidade()+"/cardapio"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(delete("/unidades/"+c.unidade()).header("Authorization","Bearer "+c.admin()))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/unidades/"+c.unidade()+"/cardapio")).andExpect(status().isNotFound());
+    }
+
+    @Test void cardapioValidaIdsCorpoEAutenticacao() throws Exception {
+        Cenario c=preparar(1,"10.00");
+        mvc.perform(get("/unidades/"+UUID.randomUUID()+"/cardapio")).andExpect(status().isNotFound());
+        mvc.perform(get("/unidades/invalida/cardapio")).andExpect(status().isBadRequest());
+        configurarCardapio(c.admin(),UUID.randomUUID().toString(),c.produto(),true,404);
+        configurarCardapio(c.admin(),c.unidade(),UUID.randomUUID().toString(),true,404);
+        String rota="/unidades/"+c.unidade()+"/cardapio/produtos/"+c.produto();
+        mvc.perform(put(rota).header("Authorization","Bearer "+c.admin()).contentType("application/json").content("{}"))
+                .andExpect(status().isUnprocessableEntity());
+        mvc.perform(put(rota).contentType("application/json").content("{\"ativo\":true}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @ParameterizedTest @ValueSource(strings={"ADMIN","GERENTE","CLIENTE","COZINHA","ATENDENTE"})
+    void somenteAdminEGerenteConfiguramCardapio(String perfil) throws Exception {
+        Cenario c=preparar(1,"10.00");
+        boolean permitido=perfil.equals("ADMIN") || perfil.equals("GERENTE");
+        mvc.perform(put("/unidades/"+c.unidade()+"/cardapio/produtos/"+c.produto())
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt()
+                        .jwt(t -> t.subject(UUID.randomUUID().toString()).claim("perfil",perfil))
+                        .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_"+perfil)))
+                .contentType("application/json").content("{\"ativo\":false}"))
+                .andExpect(status().is(permitido ? 200 : 403));
+        assertEquals(!permitido,cardapios.existsByUnidadeIdAndProdutoIdAndAtivoTrue(
+                UUID.fromString(c.unidade()),UUID.fromString(c.produto())));
     }
 
     @Test void primeiraEntradaConcorrenteAcumulaSemDuplicar() throws Exception {

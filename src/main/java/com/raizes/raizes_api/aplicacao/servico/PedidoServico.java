@@ -18,6 +18,7 @@ import com.raizes.raizes_api.infraestrutura.persistencia.entidade.ProdutoEntidad
 import com.raizes.raizes_api.infraestrutura.persistencia.repositorio.EstoqueJpaRepositorio;
 import com.raizes.raizes_api.infraestrutura.persistencia.repositorio.PedidoJpaRepositorio;
 import com.raizes.raizes_api.infraestrutura.persistencia.repositorio.ProdutoJpaRepositorio;
+import com.raizes.raizes_api.infraestrutura.persistencia.repositorio.ProdutoUnidadeJpaRepositorio;
 import com.raizes.raizes_api.infraestrutura.persistencia.repositorio.UnidadeJpaRepositorio;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,17 +37,20 @@ public class PedidoServico {
     private final ProdutoJpaRepositorio produtoRepositorio;
     private final EstoqueJpaRepositorio estoqueRepositorio;
     private final AuditoriaServico auditoriaServico;
+    private final ProdutoUnidadeJpaRepositorio cardapioRepositorio;
 
     public PedidoServico(PedidoJpaRepositorio pedidoRepositorio,
             UnidadeJpaRepositorio unidadeRepositorio,
             ProdutoJpaRepositorio produtoRepositorio,
             EstoqueJpaRepositorio estoqueRepositorio,
-            AuditoriaServico auditoriaServico) {
+            AuditoriaServico auditoriaServico,
+            ProdutoUnidadeJpaRepositorio cardapioRepositorio) {
         this.pedidoRepositorio = pedidoRepositorio;
         this.unidadeRepositorio = unidadeRepositorio;
         this.produtoRepositorio = produtoRepositorio;
         this.estoqueRepositorio = estoqueRepositorio;
         this.auditoriaServico = auditoriaServico;
+        this.cardapioRepositorio = cardapioRepositorio;
     }
 
     @Transactional
@@ -66,6 +70,11 @@ public class PedidoServico {
 
             if (!produto.isAtivo()) {
                 throw new RegraDeNegocioExcecao("Produto inativo nao pode ser vendido.");
+            }
+
+            if (!cardapioRepositorio.existsByUnidadeIdAndProdutoIdAndAtivoTrue(
+                    requisicao.getUnidadeId(), produto.getId())) {
+                throw new RegraDeNegocioExcecao("Produto nao habilitado no cardapio desta unidade.");
             }
 
             EstoqueEntidade estoque = estoqueRepositorio

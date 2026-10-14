@@ -24,6 +24,7 @@ O sistema permite o cadastro e a autenticação de usuários, controle de produt
 - Autenticação com JWT
 - Autorização por perfis
 - Cadastro e consulta de produtos
+- Cardápio por unidade, com habilitação de produtos e disponibilidade baseada no estoque local
 - Cadastro e consulta de unidades
 - Controle de estoque por unidade
 - Criação de pedidos com `canalPedido`
@@ -297,6 +298,74 @@ Todos os campos são obrigatórios. `ativa: false` desativa a unidade;
 
 ---
 
+### Cardápio por unidade
+
+O cadastro `/produtos` é o catálogo geral da rede. Cada unidade possui seu próprio
+cardápio, configurado explicitamente; cadastrar um produto ou registrar estoque
+não o inclui automaticamente no cardápio. O preço utilizado continua sendo o preço
+geral cadastrado em `/produtos`.
+
+#### Incluir, habilitar ou desabilitar um produto
+`PUT /unidades/{unidadeId}/cardapio/produtos/{produtoId}`  
+*Acesso: ADMIN ou GERENTE*
+
+Crie a unidade e o produto primeiro. O PUT cria o vínculo quando ele não existe
+ou atualiza o vínculo existente, sem duplicá-lo. O campo `ativo` é obrigatório.
+
+**Request:**
+```json
+{
+  "ativo": true
+}
+```
+
+**Response (200):**
+```json
+{
+  "unidadeId": "uuid-da-unidade",
+  "produtoId": "uuid-do-produto",
+  "ativo": true
+}
+```
+
+Envie `ativo: false` para retirar o produto apenas do cardápio dessa unidade;
+envie `ativo: true` para reativá-lo. A configuração pode ser preparada mesmo
+quando a unidade ou o produto estiverem inativos, mas isso não libera vendas.
+Unidade ou produto inexistente retorna 404.
+
+#### Consultar cardápio
+`GET /unidades/{unidadeId}/cardapio`  
+*Acesso: público, para APP, TOTEM, BALCÃO, PICKUP e WEB*
+
+**Response (200):**
+```json
+[
+  {
+    "produtoId": "uuid-do-produto",
+    "nome": "X-Burger Nordestino",
+    "descricao": "Hambúrguer artesanal com queijo coalho e molho da casa.",
+    "preco": 29.90,
+    "disponivel": true
+  }
+]
+```
+
+A consulta retorna somente produtos ativos no catálogo geral e habilitados no
+cardápio da unidade, ordenados por nome. Produtos sem registro de estoque ou com
+saldo zero permanecem visíveis com `disponivel: false`. A disponibilidade usa
+somente o estoque da unidade consultada e muda conforme entradas, saídas e pedidos.
+Um cardápio sem produtos retorna `[]`; unidade inexistente ou inativa retorna 404.
+
+Para começar a vender: cadastre unidade e produto, habilite o vínculo no cardápio
+e registre entrada de estoque naquela unidade. Ao criar o pedido, a API verifica
+novamente a habilitação e o saldo local; produto fora do cardápio retorna 409,
+mesmo que tenha estoque. Uma falha desfaz todas as baixas do pedido.
+
+As alterações do cardápio usam o mesmo bloqueio por unidade das vendas, garantindo
+que habilitação e baixa de estoque sejam verificadas de forma consistente.
+
+---
+
 ### Estoques
 
 #### Listar todo o estoque
@@ -364,6 +433,8 @@ Um pedido com item inválido desfaz todas as baixas da mesma transação.
 ```
 *Canais aceitos:* APP, TOTEM, BALCAO, PICKUP, WEB.
 *Pedidos feitos por **APP** ou **WEB** recebem desconto de 10%.*
+Todos os itens devem estar ativos no catálogo geral, habilitados no cardápio da
+unidade informada e ter estoque suficiente nessa unidade.
 
 `formaPagamento` é obrigatório e aceita `MOCK`, `PIX` ou `CARTAO`. Atualmente esse
 campo é validado, mas não é persistido nem utilizado no processamento do pedido.
