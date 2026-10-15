@@ -11,47 +11,6 @@
       "name": "🔐 ADM Autenticação",
       "item": [
         {
-          "name": "Admin Login Senha Errada",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body has required fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"usuarioId\");\n    pm.expect(json).to.have.property(\"nome\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"perfil\");\n    pm.expect(json).to.have.property(\"accessToken\");\n    pm.expect(json).to.have.property(\"tokenType\");\n    pm.expect(json).to.have.property(\"expiresIn\");\n});\n\npm.test(\"tokenType equals 'Bearer'\", function () {\n    const json = pm.response.json();\n    pm.expect(json.tokenType).to.eql(\"Bearer\");\n});\n\npm.test(\"accessToken is a non-empty string\", function () {\n    const json = pm.response.json();\n    pm.expect(json.accessToken).to.be.a(\"string\").and.to.have.length.above(0);\n});\n\npm.test(\"expiresIn is a number\", function () {\n    const json = pm.response.json();\n    pm.expect(json.expiresIn).to.be.a(\"number\");\n});\n\npm.environment.set(\"jwt_token\", pm.response.json().accessToken);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@raizes.com\",\n  \"senha\": \"Erro\"\n}\n",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/login",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "Admin Login",
           "event": [
             {
@@ -97,53 +56,6 @@
     {
       "name": "🏢 Unidade",
       "item": [
-        {
-          "name": "Criar Unidade Com Token Cliente",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"Unidade criada com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.environment.set(\"unidade_id\", resposta.id); // Salva o UUID da unidade\n});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{cliente_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"nome\": \"Asa Norte\",\n  \"endereco\": \"SQN 415\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/unidades",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "unidades"
-              ]
-            }
-          },
-          "response": []
-        },
         {
           "name": "Criar Unidade",
           "event": [
@@ -847,6 +759,85 @@
               "path": [
                 "estoques",
                 "total"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🍽️Cardapio",
+      "item": [
+        {
+          "name": "ativar produto cardápio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Consulta de status do pedido realizada\", function () {\n    pm.response.to.have.status(200);\n    const resposta = pm.response.json();\n    pm.expect(resposta).to.be.an('array');\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ativo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/unidades/{{unidade_id}}/cardapio/produtos/{{produto_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "unidades",
+                "{{unidade_id}}",
+                "cardapio",
+                "produtos",
+                "{{produto_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "visualizar cardápio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Consulta de status do pedido realizada\", function () {\n    pm.response.to.have.status(200);\n    const resposta = pm.response.json();\n    pm.expect(resposta).to.be.an('array');\n});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/unidades/{{unidade_id}}/cardapio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "unidades",
+                "{{unidade_id}}",
+                "cardapio"
               ]
             }
           },
