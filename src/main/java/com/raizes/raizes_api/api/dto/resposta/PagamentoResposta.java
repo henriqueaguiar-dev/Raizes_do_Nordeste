@@ -49,6 +49,14 @@ public class PagamentoResposta {
     public int getNumeroTentativa() { return numeroTentativa; }
     public void definirNumeroTentativa(int numero) { this.numeroTentativa = numero; }
 
+    private com.raizes.raizes_api.dominio.pagamento.RetornoEstornoExterno estornoServico;
+    private Integer statusHttpEstorno;
+    public void definirEstorno(com.raizes.raizes_api.dominio.pagamento.RetornoEstornoExterno retorno,Integer statusHttp){
+        this.estornoServico=retorno;this.statusHttpEstorno=statusHttp;
+    }
+    public com.raizes.raizes_api.dominio.pagamento.RetornoEstornoExterno getEstornoServico(){return estornoServico;}
+    public Integer getStatusHttpEstorno(){return statusHttpEstorno;}
+
     public UUID getId() {
         return id;
     }

@@ -32,6 +32,16 @@ public class PedidoResposta {
         this.itens = itens;
     }
 
+    private java.time.OffsetDateTime expiraEm;
+    private String motivoCancelamento;
+    private boolean estoqueReposto;
+    public void definirCicloVida(java.time.OffsetDateTime prazo,String motivo,boolean reposto){
+        this.expiraEm=prazo;this.motivoCancelamento=motivo;this.estoqueReposto=reposto;
+    }
+    public java.time.OffsetDateTime getExpiraEm(){return expiraEm;}
+    public String getMotivoCancelamento(){return motivoCancelamento;}
+    public boolean isEstoqueReposto(){return estoqueReposto;}
+
     public UUID getId() {
         return id;
     }

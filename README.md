@@ -495,6 +495,60 @@ Somente um pagamento aprovado muda o pedido para PAGO. Antes de ENTREGUE, o pedi
 ser CANCELADO. ENTREGUE e CANCELADO são estados finais.
 A alteração operacional exige ADMIN, GERENTE, COZINHA ou ATENDENTE.
 
+#### Efeitos do cancelamento
+
+Use o mesmo `PATCH /pedidos/{id}/status` com `{"status":"CANCELADO"}`.
+
+- Em AGUARDANDO_PAGAMENTO ou PAGO, as quantidades de todos os itens voltam ao
+  estoque da unidade, inclusive produtos que tenham sido desativados depois da venda.
+- Em EM_PREPARO ou PRONTO, o estoque não é recomposto: cada item gera um registro
+  em `perdas_estoque`, com unidade, produto, quantidade, motivo e data.
+- Se houver pagamento aprovado, a API solicita estorno HTTP ao mock antes de
+  concluir o cancelamento. A parte externa é estornada no mock; a parcela de
+  fidelidade usada volta ao saldo do cliente. O pagamento passa a ESTORNADO.
+- Os ganhos de pontos daquela compra são revertidos. Se esses pontos completaram
+  um bloco de 100 com outras compras, a conversão também é recalculada. Os registros
+  originais são preservados e marcados como estornados; o histórico recebe entradas
+  negativas `ESTORNO_CONVERSAO`, evitando crédito em duplicidade.
+
+Esses ajustes são obrigatórios mesmo se o usuário estiver inativo ou tiver retirado
+consentimento depois da compra. Não se trata de novo ganho de pontos.
+Se o crédito gerado pela compra já foi gasto em outro pedido, a reversão pode deixar
+`saldoCredito` negativo; novos ganhos compensam essa diferença. Esse valor não pode
+ser usado para pagar pedidos. Não há cobrança externa adicional dessa diferença.
+Os campos de conversão no saldo passam a representar o valor líquido após estornos.
+
+Pedidos ENTREGUE ou CANCELADO não podem ser cancelados novamente (409), garantindo
+que estoque, estorno e fidelidade não sejam aplicados duas vezes. Falha no serviço de
+estorno retorna 502 e desfaz as alterações locais; repita o cancelamento depois de
+restabelecer o mock. A chave idempotente do estorno é sempre a mesma por pagamento,
+inclusive quando a resposta anterior se perdeu. Como os processos são separados,
+um timeout pode ocorrer após o estorno externo: a repetição reconcilia esse retorno.
+A auditoria registra `CANCELAR_PEDIDO`, o motivo e a decisão de repor ou registrar perda.
+
+A resposta do pedido acrescenta `expiraEm`, `motivoCancelamento` e `estoqueReposto`.
+O pagamento consultado mostra `status: ESTORNADO`, `estornoServico` e
+`statusHttpEstorno`, mantendo também o payload da aprovação original.
+
+#### Expiração automática de pedidos não pagos
+
+Pedidos novos têm 15 minutos para pagamento. Um agendamento executado a cada
+60 segundos busca até 100 pedidos vencidos e cancela cada um em uma transação
+separada, repondo estoque. O motivo registrado é `PRAZO_PAGAMENTO_EXPIRADO`.
+Pagamentos após o prazo retornam 409 mesmo antes da próxima execução do agendamento.
+Pagamentos aprovados e pedidos ainda dentro do prazo não expiram. As operações usam
+bloqueio do pedido para resolver a concorrência entre pagamento, cancelamento e expiração.
+
+Configuração opcional:
+```bash
+export PEDIDO_PRAZO_PAGAMENTO_MINUTOS=15
+export PEDIDO_EXPIRACAO_INTERVALO_MS=60000
+export PEDIDO_EXPIRACAO_HABILITADA=true
+```
+
+O prazo fica gravado em cada pedido; mudar a configuração afeta novos pedidos.
+
+
 ---
 
 ### Pagamentos
@@ -560,6 +614,18 @@ timeout, erro HTTP ou resposta inválida retorna 502 com
 `PROVEDOR_PAGAMENTO_INDISPONIVEL`, sem criar pagamento, debitar crédito, gerar pontos
 ou mudar o pedido para PAGO. A tentativa pode ser repetida após restabelecer o mock.
 Os tempos máximos são 3 segundos para conexão e 5 segundos para a requisição.
+
+#### Serviço externo de estorno mock
+
+O mesmo processo `python3 tools/pagamento_mock.py` expõe `POST /estornos`.
+A API Raízes chama essa rota automaticamente ao cancelar um pedido pago.
+Envia `pagamentoId`, `pedidoId`, `codigoTransacao`, `valor` (parcela externa) e
+`moeda: BRL`, com header `Idempotency-Key: pagamentoId:estorno`.
+O retorno contém `pagamentoId`, `codigoEstorno`, `status: ESTORNADO`, `valor`,
+`moeda` e `mensagem`. Solicitação, resposta e status HTTP são persistidos no pagamento.
+O mock aceita apenas pagamentos aprovados e confere transação, pedido e valor;
+repetir o mesmo estorno retorna o mesmo resultado, sem nova devolução.
+Tudo continua simulado. Reinicie o mock e a API ao atualizar para carregar as novas rotas.
 
 #### Processar pagamento mock
 `POST /pagamentos/pedidos/{pedidoId}`  
@@ -782,9 +848,8 @@ Python. Para testar o mock separado, execute
 Os dados se perdem ao encerrar a aplicação. O schema é gerado pelo Hibernate.
 
 O desconto é arredondado para duas casas com HALF_UP. Preços também precisam ter no
-máximo duas casas decimais. Pedidos cancelados não estornam estoque nem pagamentos;
-os ganhos e débitos de fidelidade já registrados são preservados, mesmo em pedidos
-cancelados; não há devolução automática de crédito nessa situação. Essas são as regras atuais do mock.
+máximo duas casas decimais. Cancelamentos seguem as regras de reposição/perda, estorno mock e reversão de
+fidelidade descritas na seção de pedidos.
 
 ## Testes automáticos no GitHub (CI)
 

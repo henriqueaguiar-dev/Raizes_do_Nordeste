@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public interface FidelidadeDebitoJpaRepositorio extends JpaRepository<FidelidadeDebitoEntidade, UUID> {
-    @Query("select sum(d.valor) from FidelidadeDebitoEntidade d where d.clienteId = :clienteId")
+    java.util.Optional<FidelidadeDebitoEntidade> findByPagamentoId(UUID pagamentoId);
+    @Query("select sum(d.valor) from FidelidadeDebitoEntidade d where d.clienteId = :clienteId and d.estornado = false")
     BigDecimal somarValor(@Param("clienteId") UUID clienteId);
 }

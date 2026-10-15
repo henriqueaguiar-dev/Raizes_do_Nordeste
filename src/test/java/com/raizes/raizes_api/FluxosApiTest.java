@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = {
+    "app.pedidos.expiracao.habilitada=false",
     "app.security.jwt.secret=teste-segredo-com-pelo-menos-trinta-e-dois-bytes",
     "app.admin-inicial.nome=Administrador Teste",
     "app.admin-inicial.email=admin@teste.local",
@@ -54,6 +55,18 @@ class FluxosApiTest {
             exchange.getResponseHeaders().add("Content-Type","application/json");
             exchange.sendResponseHeaders(statusHttp,resposta.length);
             try(var out=exchange.getResponseBody()){out.write(resposta);}
+        });
+        servidorMock.createContext("/estornos", exchange -> {
+            var entrada=mockJson.readTree(new String(exchange.getRequestBody().readAllBytes(),java.nio.charset.StandardCharsets.UTF_8));
+            String pedidoId=entrada.get("pedidoId").asText();
+            int statusHttp=errosProvedor.getOrDefault(pedidoId,201);
+            byte[] bytes=mockJson.writeValueAsString(java.util.Map.of(
+                    "pagamentoId",entrada.get("pagamentoId").asText(),"codigoEstorno","ESTORNO-"+UUID.randomUUID(),
+                    "status","ESTORNADO","valor",entrada.get("valor").decimalValue(),"moeda","BRL","mensagem","Estorno mock"))
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type","application/json");
+            exchange.sendResponseHeaders(statusHttp,bytes.length);
+            try(var out=exchange.getResponseBody()){out.write(bytes);}
         });
         servidorMock.start();
         registry.add("app.pagamento.mock.url",()->"http://127.0.0.1:"+servidorMock.getAddress().getPort()+"/pagamentos");
@@ -524,5 +537,150 @@ class FluxosApiTest {
         assertEquals(3,historico.size());
         assertEquals(3,historico.getFirst().getNumeroTentativa());
         assertEquals(18,fidelidadeServico.consultarSaldo(pedidos.findById(UUID.fromString(id)).orElseThrow().getClienteId()).pontosGanhos());
+    }
+
+    @Autowired PerdaEstoqueJpaRepositorio perdasEstoque;
+    @Autowired com.raizes.raizes_api.aplicacao.servico.ExpiracaoPedidosServico expiracaoPedidos;
+
+    void pagarPedido(Cenario c,String id,boolean aprovado,java.math.BigDecimal credito,int status) throws Exception {
+        enviar("/pagamentos/pedidos/"+id,json.writeValueAsString(java.util.Map.of("metodo","MOCK",
+                "aprovadoMock",aprovado,"valorFidelidade",credito)),c.cliente(),status);
+    }
+
+    @Test void cancelaPedidoNaoPagoRecompoeEstoqueUmaVez() throws Exception {
+        Cenario c=preparar(10,"10.00");String id=campo(criar(c,"BALCAO"),"id");
+        alterar(c,id,"CANCELADO",200);
+        assertEquals(10,estoque(c));
+        assertTrue(perdasEstoque.findByPedidoId(UUID.fromString(id)).isEmpty());
+        mvc.perform(get("/pedidos/"+id).header("Authorization","Bearer "+c.cliente()))
+                .andExpect(jsonPath("$.estoqueReposto").value(true))
+                .andExpect(jsonPath("$.motivoCancelamento").value("CANCELAMENTO_OPERACIONAL"));
+        alterar(c,id,"CANCELADO",409);
+        pagarPedido(c,id,true,java.math.BigDecimal.ZERO,409);
+        assertEquals(10,estoque(c));
+    }
+
+    @Test void cancelarPagoEstornaMockEPontosMesmoSemConsentimento() throws Exception {
+        Cenario c=preparar(10,"60.00");var pedido=json.readTree(criar(c,"BALCAO"));
+        String id=pedido.get("id").asText();UUID clienteId=UUID.fromString(pedido.get("clienteId").asText());
+        pagarPedido(c,id,true,java.math.BigDecimal.ZERO,200);
+        assertEquals(20,fidelidadeServico.consultarSaldo(clienteId).restante());
+        assertEquals(new java.math.BigDecimal("1.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+        mudarConsentimento(c,clienteId,false);
+        alterar(c,id,"CANCELADO",200);
+        assertEquals(10,estoque(c));
+        assertEquals(0,fidelidadeServico.consultarSaldo(clienteId).pontosGanhos());
+        assertEquals(0,fidelidadeServico.consultarSaldo(clienteId).restante());
+        assertEquals(new java.math.BigDecimal("0.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+        mvc.perform(get("/pagamentos/pedidos/"+id).header("Authorization","Bearer "+c.cliente()))
+                .andExpect(jsonPath("$.status").value("ESTORNADO"))
+                .andExpect(jsonPath("$.estornoServico.status").value("ESTORNADO"))
+                .andExpect(jsonPath("$.estornoServico.valor").value(120.00));
+        alterar(c,id,"CANCELADO",409);
+    }
+
+    @ParameterizedTest @ValueSource(strings={"EM_PREPARO","PRONTO"})
+    void cancelamentoAposPreparoRegistraPerdaSemReporEstoque(String etapa) throws Exception {
+        Cenario c=preparar(10,"10.00");String id=campo(criar(c,"BALCAO"),"id");
+        pagarPedido(c,id,true,java.math.BigDecimal.ZERO,200);
+        alterar(c,id,"EM_PREPARO",200);
+        if(etapa.equals("PRONTO")) alterar(c,id,"PRONTO",200);
+        alterar(c,id,"CANCELADO",200);
+        assertEquals(8,estoque(c));
+        var perdas=perdasEstoque.findByPedidoId(UUID.fromString(id));
+        assertEquals(1,perdas.size());assertEquals(2,perdas.getFirst().getQuantidade());
+        assertEquals("ESTORNADO",pagamentos.findFirstByPedidoIdOrderByNumeroTentativaDesc(UUID.fromString(id)).orElseThrow().getStatus().name());
+        alterar(c,id,"CANCELADO",409);
+        assertEquals(1,perdasEstoque.findByPedidoId(UUID.fromString(id)).size());
+    }
+
+    @Test void falhaDoEstornoDesfazCancelamentoEstoqueEFidelidade() throws Exception {
+        Cenario c=preparar(10,"60.00");var pedido=json.readTree(criar(c,"BALCAO"));
+        String id=pedido.get("id").asText();UUID clienteId=UUID.fromString(pedido.get("clienteId").asText());
+        pagarPedido(c,id,true,java.math.BigDecimal.ZERO,200);
+        errosProvedor.put(id,503);
+        alterar(c,id,"CANCELADO",502);
+        assertEquals(8,estoque(c));
+        assertEquals("PAGO",pedidos.findById(UUID.fromString(id)).orElseThrow().getStatus().name());
+        assertEquals("APROVADO",pagamentos.findFirstByPedidoIdOrderByNumeroTentativaDesc(UUID.fromString(id)).orElseThrow().getStatus().name());
+        assertEquals(20,fidelidadeServico.consultarSaldo(clienteId).restante());
+        assertEquals(new java.math.BigDecimal("1.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+        errosProvedor.remove(id);
+        alterar(c,id,"CANCELADO",200);assertEquals(10,estoque(c));
+    }
+
+    @Test void cancelarCompraDevolveCreditoUsadoERetiraSomenteSeusPontos() throws Exception {
+        Cenario c=preparar(10,"100.00");
+        var primeiro=json.readTree(enviar("/pedidos",corpoPedido(c,"BALCAO",1),c.cliente(),201));
+        UUID clienteId=UUID.fromString(primeiro.get("clienteId").asText());
+        pagarPedido(c,primeiro.get("id").asText(),true,java.math.BigDecimal.ZERO,200);
+        String segundo=campo(enviar("/pedidos",corpoPedido(c,"BALCAO",1),c.cliente(),201),"id");
+        pagarPedido(c,segundo,true,new java.math.BigDecimal("1.00"),200);
+        assertEquals(99,fidelidadeServico.consultarSaldo(clienteId).restante());
+        alterar(c,segundo,"CANCELADO",200);
+        assertEquals(100,fidelidadeServico.consultarSaldo(clienteId).pontosGanhos());
+        assertEquals(0,fidelidadeServico.consultarSaldo(clienteId).restante());
+        assertEquals(new java.math.BigDecimal("1.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+        assertEquals(9,estoque(c));
+    }
+
+    @Test void estornoDePontosJaGastosRegistraSaldoNegativoSemDuplicarBeneficio() throws Exception {
+        Cenario c=preparar(10,"100.00");
+        var primeiro=json.readTree(enviar("/pedidos",corpoPedido(c,"BALCAO",1),c.cliente(),201));
+        UUID clienteId=UUID.fromString(primeiro.get("clienteId").asText());
+        pagarPedido(c,primeiro.get("id").asText(),true,java.math.BigDecimal.ZERO,200);
+        mvc.perform(put("/produtos/"+c.produto()).header("Authorization","Bearer "+c.admin()).contentType("application/json")
+                .content(json.writeValueAsString(java.util.Map.of("nome","Produto","descricao","Teste","preco",1,"ativo",true))))
+                .andExpect(status().isOk());
+        String segundo=campo(enviar("/pedidos",corpoPedido(c,"BALCAO",1),c.cliente(),201),"id");
+        pagarPedido(c,segundo,true,new java.math.BigDecimal("1.00"),200);
+        alterar(c,primeiro.get("id").asText(),"CANCELADO",200);
+        assertEquals(0,fidelidadeServico.consultarSaldo(clienteId).restante());
+        assertEquals(new java.math.BigDecimal("-1.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+        alterar(c,segundo,"CANCELADO",200);
+        assertEquals(new java.math.BigDecimal("0.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+        assertEquals(10,estoque(c));
+    }
+
+    @Test void expiraPedidoNaoPagoSemPermitirPagamentoForaDoPrazo() throws Exception {
+        Cenario c=preparar(10,"10.00");String id=campo(criar(c,"BALCAO"),"id");
+        var pedido=pedidos.findById(UUID.fromString(id)).orElseThrow();
+        pedido.definirExpiraEm(java.time.OffsetDateTime.now().minusMinutes(1));pedidos.save(pedido);
+        pagarPedido(c,id,true,java.math.BigDecimal.ZERO,409);
+        assertEquals(1,expiracaoPedidos.expirar());
+        assertEquals(10,estoque(c));
+        assertEquals("PRAZO_PAGAMENTO_EXPIRADO",pedidos.findById(UUID.fromString(id)).orElseThrow().getMotivoCancelamento());
+        assertEquals(0,expiracaoPedidos.expirar());assertEquals(10,estoque(c));
+    }
+
+    @Test void expiracaoNaoCancelaPagosNemPedidosDentroDoPrazo() throws Exception {
+        Cenario c=preparar(10,"10.00");String id=campo(criar(c,"BALCAO"),"id");
+        pagarPedido(c,id,true,java.math.BigDecimal.ZERO,200);
+        var pago=pedidos.findById(UUID.fromString(id)).orElseThrow();
+        pago.definirExpiraEm(java.time.OffsetDateTime.now().minusMinutes(1));pedidos.save(pago);
+        criar(c,"BALCAO");
+        assertEquals(0,expiracaoPedidos.expirar());
+        assertEquals("PAGO",pedidos.findById(UUID.fromString(id)).orElseThrow().getStatus().name());
+        assertEquals(6,estoque(c));
+    }
+
+    @Test void pagamentoECancelamentoConcorrentesTerminamSemCobrancaOuEstoqueRetido() throws Exception {
+        Cenario c=preparar(10,"60.00");var pedido=json.readTree(criar(c,"BALCAO"));
+        UUID id=UUID.fromString(pedido.get("id").asText()),clienteId=UUID.fromString(pedido.get("clienteId").asText());
+        var req=json.readValue(json.writeValueAsString(java.util.Map.of("metodo","MOCK","aprovadoMock",true)),
+                com.raizes.raizes_api.api.dto.requisicao.ProcessarPagamentoRequisicao.class);
+        ExecutorService pool=Executors.newFixedThreadPool(2);CountDownLatch inicio=new CountDownLatch(1);
+        try {
+            var pagar=pool.submit(()->{inicio.await();try {pagamentoServicoFidelidade.processar(id,req,clienteId,"CLIENTE");}
+                catch(com.raizes.raizes_api.dominio.excecao.RegraDeNegocioExcecao e){}return true;});
+            var cancelar=pool.submit(()->{inicio.await();pedidoServico.atualizarStatus(id,
+                com.raizes.raizes_api.dominio.enums.StatusPedido.CANCELADO,clienteId,"ADMIN");return true;});
+            inicio.countDown();pagar.get(15,TimeUnit.SECONDS);cancelar.get(15,TimeUnit.SECONDS);
+            assertEquals("CANCELADO",pedidos.findById(id).orElseThrow().getStatus().name());
+            assertEquals(10,estoque(c));
+            assertEquals(0,fidelidadeServico.consultarSaldo(clienteId).pontosGanhos());
+            assertEquals(new java.math.BigDecimal("0.00"),fidelidadeServico.consultarSaldo(clienteId).saldoCredito());
+            pagamentos.findFirstByPedidoIdOrderByNumeroTentativaDesc(id).ifPresent(p -> assertEquals("ESTORNADO",p.getStatus().name()));
+        } finally {pool.shutdownNow();}
     }
 }

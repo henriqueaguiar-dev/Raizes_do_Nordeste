@@ -13,6 +13,9 @@ public class FidelidadeDebitoEntidade {
     @Column(name = "pagamento_id", nullable = false) private UUID pagamentoId;
     @Column(nullable = false, precision = 10, scale = 2) private BigDecimal valor;
     @Column(name = "criado_em", nullable = false) private OffsetDateTime criadoEm;
+    @Column(nullable=false) private boolean estornado = false;
+    public void estornar() { this.estornado = true; }
+    public boolean isEstornado() { return estornado; }
     protected FidelidadeDebitoEntidade() {}
     public FidelidadeDebitoEntidade(UUID clienteId, UUID pagamentoId, BigDecimal valor) {
         this.id = UUID.randomUUID();

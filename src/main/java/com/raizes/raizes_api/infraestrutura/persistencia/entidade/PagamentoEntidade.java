@@ -77,6 +77,17 @@ public class PagamentoEntidade {
     public int getNumeroTentativa() { return numeroTentativa; }
     public void definirNumeroTentativa(int numero) { this.numeroTentativa = numero; }
 
+    @jakarta.persistence.Lob private String solicitacaoEstorno;
+    @jakarta.persistence.Lob private String retornoEstorno;
+    private Integer statusHttpEstorno;
+    public void registrarEstorno(String solicitacao,String retorno,int statusHttp) {
+        this.solicitacaoEstorno=solicitacao;this.retornoEstorno=retorno;this.statusHttpEstorno=statusHttp;
+        this.status=StatusPagamento.ESTORNADO;
+    }
+    public String getSolicitacaoEstorno(){ return solicitacaoEstorno; }
+    public String getRetornoEstorno(){ return retornoEstorno; }
+    public Integer getStatusHttpEstorno(){ return statusHttpEstorno; }
+
     protected PagamentoEntidade() {
     }
 

@@ -38,19 +38,23 @@ public class PedidoServico {
     private final EstoqueJpaRepositorio estoqueRepositorio;
     private final AuditoriaServico auditoriaServico;
     private final ProdutoUnidadeJpaRepositorio cardapioRepositorio;
+    private final CancelamentoPedidoServico cancelamentoServico;
+    @org.springframework.beans.factory.annotation.Value("${app.pedidos.expiracao.minutos:15}")
+    private long prazoPagamentoMinutos;
 
     public PedidoServico(PedidoJpaRepositorio pedidoRepositorio,
             UnidadeJpaRepositorio unidadeRepositorio,
             ProdutoJpaRepositorio produtoRepositorio,
             EstoqueJpaRepositorio estoqueRepositorio,
             AuditoriaServico auditoriaServico,
-            ProdutoUnidadeJpaRepositorio cardapioRepositorio) {
+            ProdutoUnidadeJpaRepositorio cardapioRepositorio,CancelamentoPedidoServico cancelamentoServico) {
         this.pedidoRepositorio = pedidoRepositorio;
         this.unidadeRepositorio = unidadeRepositorio;
         this.produtoRepositorio = produtoRepositorio;
         this.estoqueRepositorio = estoqueRepositorio;
         this.auditoriaServico = auditoriaServico;
         this.cardapioRepositorio = cardapioRepositorio;
+        this.cancelamentoServico = cancelamentoServico;
     }
 
     @Transactional
@@ -125,6 +129,8 @@ public class PedidoServico {
                 agora,
                 agora);
 
+        if(prazoPagamentoMinutos<=0) throw new RegraDeNegocioExcecao("Prazo de pagamento deve ser positivo.");
+        pedido.definirExpiraEm(agora.plusMinutes(prazoPagamentoMinutos));
         itens.forEach(pedido::adicionarItem);
 
         PedidoEntidade pedidoSalvo = pedidoRepositorio.save(pedido);
@@ -196,7 +202,7 @@ public class PedidoServico {
                         item.getSubtotal()))
                 .toList();
 
-        return new PedidoResposta(
+        PedidoResposta resposta = new PedidoResposta(
                 pedido.getId(),
                 pedido.getClienteId(),
                 pedido.getUnidadeId(),
@@ -204,6 +210,8 @@ public class PedidoServico {
                 pedido.getStatus(),
                 pedido.getSubtotal(), pedido.getValorDesconto(), pedido.getTotal(),
                 itens);
+        resposta.definirCicloVida(pedido.getExpiraEm(),pedido.getMotivoCancelamento(),pedido.isEstoqueReposto());
+        return resposta;
     }
 
     @Transactional
@@ -214,6 +222,10 @@ public class PedidoServico {
         PedidoEntidade pedido = pedidoRepositorio.buscarComBloqueio(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Pedido nao encontrado."));
         validarMudancaStatus(pedido.getStatus(), novoStatus);
+        if(novoStatus==StatusPedido.CANCELADO) {
+            cancelamentoServico.cancelar(pedido,autorId,"CANCELAMENTO_OPERACIONAL");
+            return paraResposta(pedido);
+        }
         pedido.alterarStatus(novoStatus);
         PedidoEntidade salvo = pedidoRepositorio.save(pedido);
         auditoriaServico.registrar(autorId, "ATUALIZAR_STATUS_PEDIDO", "Pedido", id,

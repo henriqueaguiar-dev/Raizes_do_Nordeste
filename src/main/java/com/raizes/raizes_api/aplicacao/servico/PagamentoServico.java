@@ -55,6 +55,10 @@ public class PagamentoServico {
             throw new RegraDeNegocioExcecao("Pedido nao esta aguardando pagamento.");
         }
 
+        if (!pedido.getExpiraEm().isAfter(OffsetDateTime.now())) {
+            throw new RegraDeNegocioExcecao("Prazo de pagamento expirado.");
+        }
+
         java.math.BigDecimal valorFidelidade = requisicao.getValorFidelidade().setScale(2);
         if (valorFidelidade.compareTo(pedido.getTotal()) > 0) {
             throw new RegraDeNegocioExcecao("Credito de fidelidade nao pode exceder o total do pedido.");
@@ -122,6 +126,19 @@ public class PagamentoServico {
                 .stream().map(this::paraResposta).toList();
     }
 
+    @Transactional
+    public void estornarPedido(PedidoEntidade pedido) {
+        var pagamento=pagamentoRepositorio.findFirstByPedidoIdOrderByNumeroTentativaDesc(pedido.getId()).orElse(null);
+        if(pagamento==null || pagamento.getStatus()!=StatusPagamento.APROVADO) return;
+        var solicitacao=new SolicitacaoEstornoExterno(pagamento.getId(),pedido.getId(),
+                pagamento.getCodigoTransacaoMock(),pagamento.getValorExterno(),"BRL");
+        var resultado=provedorPagamento.estornar(solicitacao);
+        pagamento.registrarEstorno(mapper.writeValueAsString(solicitacao),
+                mapper.writeValueAsString(resultado.payload()),resultado.statusHttp());
+        pagamentoRepositorio.save(pagamento);
+        fidelidadeServico.estornarPagamento(pedido.getClienteId(),pagamento.getId());
+    }
+
     private void validarAcesso(PedidoEntidade pedido, UUID usuarioId, String perfil) {
         boolean permitido = switch (perfil == null ? "" : perfil) {
             case "CLIENTE" -> pedido.getClienteId().equals(usuarioId);
@@ -148,6 +165,8 @@ public class PagamentoServico {
                     mapper.readValue(pagamento.getRetornoServico(), RetornoPagamentoExterno.class),
                     pagamento.getStatusHttpServico());
         }
+        if(pagamento.getRetornoEstorno()!=null) resposta.definirEstorno(
+                mapper.readValue(pagamento.getRetornoEstorno(),RetornoEstornoExterno.class),pagamento.getStatusHttpEstorno());
         return resposta;
     }
 }

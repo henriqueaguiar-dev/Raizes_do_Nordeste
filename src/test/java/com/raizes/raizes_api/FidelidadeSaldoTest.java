@@ -128,6 +128,21 @@ class FidelidadeSaldoTest {
         assertEquals(new BigDecimal("6.00"), saldo.saldoCredito());
     }
 
+    @Test
+    void estornoRecalculaConversaoQuandoCentavosDeComprasDiferentesCompletaramCem() {
+        UUID id=criarUsuario(true);
+        registrar(id,"99.50",StatusPagamento.APROVADO);
+        var origem=pagamentos.findAll().stream().filter(p -> p.getValor().compareTo(new BigDecimal("99.50"))==0).findFirst().orElseThrow();
+        registrar(id,"0.50",StatusPagamento.APROVADO);
+        assertEquals(new BigDecimal("1.00"),fidelidadeServico.consultarSaldo(id).saldoCredito());
+        fidelidadeServico.estornarPagamento(id,origem.getId());
+        assertEquals(0,fidelidadeServico.consultarSaldo(id).pontosGanhos());
+        assertEquals(0,fidelidadeServico.consultarSaldo(id).restante());
+        assertEquals(new BigDecimal("0.00"),fidelidadeServico.consultarSaldo(id).saldoCredito());
+        fidelidadeServico.estornarPagamento(id,origem.getId());
+        assertEquals(new BigDecimal("0.00"),fidelidadeServico.consultarSaldo(id).saldoCredito());
+    }
+
     private void registrar(UUID clienteId, String valor, StatusPagamento status) {
         UUID pedidoId = UUID.randomUUID();
         OffsetDateTime agora = OffsetDateTime.now();

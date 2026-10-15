@@ -11,6 +11,9 @@ import com.raizes.raizes_api.infraestrutura.persistencia.entidade.PedidoEntidade
 
 public interface PedidoJpaRepositorio extends JpaRepository<PedidoEntidade, UUID> {
 
+    List<PedidoEntidade> findTop100ByStatusAndExpiraEmLessThanEqualOrderByExpiraEmAsc(
+            StatusPedido status,java.time.OffsetDateTime prazo);
+
     List<PedidoEntidade> findByClienteId(UUID clienteId);
 
     List<PedidoEntidade> findByCanalPedido(CanalPedido canalPedido);

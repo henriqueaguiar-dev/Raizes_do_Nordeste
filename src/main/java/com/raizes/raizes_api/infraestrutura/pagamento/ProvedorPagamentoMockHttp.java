@@ -53,4 +53,28 @@ public class ProvedorPagamentoMockHttp implements ProvedorPagamento {
             throw new ProvedorPagamentoExcecao("Servico de pagamento mock indisponivel ou resposta invalida.", e);
         }
     }
+
+    @Override
+    public ResultadoEstorno estornar(SolicitacaoEstornoExterno solicitacao) {
+        try {
+            HttpRequest request=HttpRequest.newBuilder(endpoint.resolve("estornos")).timeout(Duration.ofSeconds(5))
+                    .header("Content-Type","application/json")
+                    .header("Idempotency-Key",solicitacao.pagamentoId()+":estorno")
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(solicitacao))).build();
+            var response=client.send(request,HttpResponse.BodyHandlers.ofString());
+            if(response.statusCode()!=200 && response.statusCode()!=201)
+                throw new ProvedorPagamentoExcecao("Servico mock recusou o estorno.");
+            var payload=mapper.readValue(response.body(),RetornoEstornoExterno.class);
+            if(payload==null || !solicitacao.pagamentoId().equals(payload.pagamentoId())
+                    || payload.status()!=StatusPagamento.ESTORNADO || payload.valor()==null
+                    || solicitacao.valor().compareTo(payload.valor())!=0 || !solicitacao.moeda().equals(payload.moeda())
+                    || payload.codigoEstorno()==null || payload.codigoEstorno().isBlank()
+                    || payload.mensagem()==null)
+                throw new ProvedorPagamentoExcecao("Resposta inconsistente do estorno mock.");
+            return new ResultadoEstorno(response.statusCode(),payload);
+        } catch(InterruptedException e) {
+            Thread.currentThread().interrupt();throw new ProvedorPagamentoExcecao("Estorno interrompido.",e);
+        } catch(ProvedorPagamentoExcecao e) { throw e;
+        } catch(Exception e) { throw new ProvedorPagamentoExcecao("Servico de estorno mock indisponivel.",e); }
+    }
 }

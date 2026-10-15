@@ -36,6 +36,8 @@ public class Pagamento {
         this.codigoTransacaoMock = codigoTransacaoMock;
     }
 
+    public void estornar() { this.status = StatusPagamento.ESTORNADO; }
+
     public UUID getId() {
         return id;
     }

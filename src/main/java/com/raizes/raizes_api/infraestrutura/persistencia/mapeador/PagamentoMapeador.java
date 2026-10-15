@@ -21,6 +21,7 @@ public class PagamentoMapeador {
         switch (entidade.getStatus()) {
             case APROVADO -> pagamento.aprovar(entidade.getCodigoTransacaoMock());
             case RECUSADO -> pagamento.recusar(entidade.getCodigoTransacaoMock());
+            case ESTORNADO -> pagamento.estornar();
             case PENDENTE -> {
             }
         }

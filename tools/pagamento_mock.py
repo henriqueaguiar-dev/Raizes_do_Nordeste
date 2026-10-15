@@ -8,6 +8,8 @@ from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 transacoes = {}
+estornos = {}
+estornos_por_transacao = {}
 bloqueio = threading.Lock()
 
 
@@ -21,6 +23,9 @@ class PagamentoMock(BaseHTTPRequestHandler):
         self.wfile.write(corpo)
 
     def do_POST(self):
+        if self.path == '/estornos':
+            self.estornar()
+            return
         if self.path != '/pagamentos':
             self.responder(404, {'erro': 'ROTA_INEXISTENTE'})
             return
@@ -63,6 +68,44 @@ class PagamentoMock(BaseHTTPRequestHandler):
             self.responder(status_http, retorno)
         except (ValueError, KeyError, TypeError, ArithmeticError):
             self.responder(400, {'erro': 'SOLICITACAO_INVALIDA'})
+
+    def estornar(self):
+        try:
+            tamanho = int(self.headers.get('Content-Length', '0'))
+            if not 0 < tamanho <= 8192:
+                raise ValueError('Tamanho invalido')
+            dados = json.loads(self.rfile.read(tamanho), parse_float=Decimal)
+            pagamento_id = str(uuid.UUID(dados['pagamentoId']))
+            pedido_id = str(uuid.UUID(dados['pedidoId']))
+            chave = pagamento_id + ':estorno'
+            valor = Decimal(str(dados['valor']))
+            if (self.headers.get('Idempotency-Key') != chave or dados['moeda'] != 'BRL'
+                    or not valor.is_finite() or valor < 0):
+                raise ValueError('Estorno invalido')
+            with bloqueio:
+                if chave in estornos:
+                    anterior, retorno = estornos[chave]
+                    if anterior != dados:
+                        self.responder(409, {'erro': 'ESTORNO_DIVERGENTE'})
+                        return
+                    status = 200
+                else:
+                    original = next((r for _, r in transacoes.values()
+                                     if r['codigoTransacao'] == dados['codigoTransacao']), None)
+                    if (original is None or original['status'] != 'APROVADO'
+                            or original['pedidoId'] != pedido_id
+                            or Decimal(str(original['valor'])) != valor
+                            or dados['codigoTransacao'] in estornos_por_transacao):
+                        self.responder(409, {'erro': 'PAGAMENTO_NAO_ESTORNAVEL'})
+                        return
+                    retorno = dict(pagamentoId=pagamento_id, codigoEstorno='ESTORNO-' + str(uuid.uuid4()),
+                                   status='ESTORNADO', valor=float(valor), moeda='BRL', mensagem='Estorno mock aprovado.')
+                    estornos[chave] = (dados, retorno)
+                    estornos_por_transacao[dados['codigoTransacao']] = chave
+                    status = 201
+            self.responder(status, retorno)
+        except (ValueError, KeyError, TypeError, ArithmeticError):
+            self.responder(400, {'erro': 'SOLICITACAO_ESTORNO_INVALIDA'})
 
 
 if __name__ == '__main__':

@@ -56,6 +56,17 @@ public class PedidoEntidade {
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<PedidoItemEntidade> itens = new ArrayList<>();
 
+    @Column(name="expira_em",nullable=false) private OffsetDateTime expiraEm;
+    private String motivoCancelamento;
+    private boolean estoqueReposto;
+    public OffsetDateTime getExpiraEm(){ return expiraEm; }
+    public void definirExpiraEm(OffsetDateTime prazo){ this.expiraEm=prazo; }
+    public String getMotivoCancelamento(){ return motivoCancelamento; }
+    public boolean isEstoqueReposto(){ return estoqueReposto; }
+    public void registrarCancelamento(String motivo,boolean reposto){
+        this.motivoCancelamento=motivo;this.estoqueReposto=reposto;alterarStatus(StatusPedido.CANCELADO);
+    }
+
     protected PedidoEntidade() {
     }
 
@@ -75,6 +86,7 @@ public class PedidoEntidade {
         this.status = status;
         this.total = total;
         this.criadoEm = criadoEm;
+        this.expiraEm = criadoEm.plusMinutes(15);
         this.atualizadoEm = atualizadoEm;
     }
 

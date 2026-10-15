@@ -94,6 +94,20 @@ public class FidelidadeServico {
         debitos.save(new FidelidadeDebitoEntidade(clienteId, pagamento.getId(), pagamento.getValorFidelidade()));
     }
 
+    @Transactional
+    public void estornarPagamento(UUID clienteId, UUID pagamentoId) {
+        buscarComBloqueio(clienteId);
+        creditos.findByPagamentoId(pagamentoId).ifPresent(c -> c.estornar());
+        debitos.findByPagamentoId(pagamentoId).ifPresent(d -> d.estornar());
+        long pontosValidos=calcularPontosGanhos(clienteId);
+        long convertidos=resgates.somarPontos(clienteId);
+        if(convertidos>pontosValidos) {
+            long reverter=((convertidos-pontosValidos+99)/100)*100;
+            resgates.save(new FidelidadeResgateEntidade(clienteId,-reverter,"ESTORNO_CONVERSAO",
+                    BigDecimal.valueOf(-reverter/100).setScale(2)));
+        }
+    }
+
     private BigDecimal calcularCredito(UUID clienteId) {
         BigDecimal recebido = resgates.somarCredito(clienteId);
         BigDecimal gasto = debitos.somarValor(clienteId);
