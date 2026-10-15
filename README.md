@@ -29,9 +29,14 @@ O sistema permite o cadastro e a autenticação de usuários, controle de produt
 - Controle de estoque por unidade
 - Criação de pedidos com `canalPedido`
 - Desconto de 10% para pedidos via APP e WEB
-- Pagamento mock (aprovado ou recusado)
-- Atualização de status do pedido
-- Auditoria da criação de pedidos, alteração de status e processamento de pagamentos
+- Pagamento via serviço HTTP mock separado (aprovado ou recusado)
+- Novas tentativas após recusa, com histórico e proteção contra cobranças duplicadas
+- Estorno mock de pagamentos e devolução de crédito de fidelidade
+- Fidelidade com consentimento e conversão automática de 100 pontos em R$ 1,00
+- Atualização de status e cancelamento com reposição de estoque ou registro de perda
+- Reversão de pontos e créditos gerados por compras canceladas
+- Expiração automática de pedidos não pagos
+- Auditoria de criação, alteração de status, cancelamento/expiração e tentativas de pagamento
 - Tratamento padronizado de erros
 - Documentação via Swagger/OpenAPI
 
@@ -232,6 +237,10 @@ Crie primeiro uma unidade e informe seu ID no campo obrigatório `unidadeId`.
 `GET /produtos`  
 *Acesso: público*
 
+Retorna todos os produtos, inclusive inativos (`ativo: false`). É o catálogo geral
+da rede; para a oferta de uma unidade, consulte `/unidades/{unidadeId}/cardapio`,
+que filtra produtos inativos e vínculos desabilitados.
+
 #### Buscar produto por ID
 `GET /produtos/{id}`  
 *Acesso: público*
@@ -276,6 +285,9 @@ oito dígitos inteiros e duas casas decimais. `ativo: false` desativa o produto;
 #### Listar unidades
 `GET /unidades`  
 *Acesso: público*
+
+Retorna todas as unidades, inclusive inativas (`ativa: false`). Unidades inativas
+continuam consultáveis pelo ID, mas não oferecem cardápio público nem aceitam novos pedidos.
 
 #### Buscar unidade por ID
 `GET /unidades/{id}`  
@@ -456,6 +468,9 @@ a aplicação não exige que ele seja igual à `formaPagamento` da criação do 
   "subtotal": 59.80,
   "valorDesconto": 5.98,
   "total": 53.82,
+  "expiraEm": "2026-10-14T13:15:00-04:00",
+  "motivoCancelamento": null,
+  "estoqueReposto": false,
   "itens": [
     {
       "produtoId": "uuid",
@@ -521,9 +536,16 @@ Os campos de conversão no saldo passam a representar o valor líquido após est
 Pedidos ENTREGUE ou CANCELADO não podem ser cancelados novamente (409), garantindo
 que estoque, estorno e fidelidade não sejam aplicados duas vezes. Falha no serviço de
 estorno retorna 502 e desfaz as alterações locais; repita o cancelamento depois de
-restabelecer o mock. A chave idempotente do estorno é sempre a mesma por pagamento,
+restabelecer o acesso ao mesmo processo do mock. A chave idempotente do estorno é sempre a mesma por pagamento,
 inclusive quando a resposta anterior se perdeu. Como os processos são separados,
 um timeout pode ocorrer após o estorno externo: a repetição reconcilia esse retorno.
+**Limitação do mock em memória:** reiniciar somente o processo Python apaga suas
+transações e seus estornos. Nesse caso, pagamentos ainda registrados na API não
+serão reconhecidos pelo mock e seus estornos retornarão erro (502 na API Raízes).
+Repetir a chamada não recupera o histórico perdido. Para uma nova demonstração,
+reinicie ambos os processos e recrie os dados, pois o H2 da API também é em memória.
+A reconciliação por repetição descrita acima depende de o mock preservar a transação.
+
 A auditoria registra `CANCELAR_PEDIDO`, o motivo e a decisão de repor ou registrar perda.
 
 A resposta do pedido acrescenta `expiraEm`, `motivoCancelamento` e `estoqueReposto`.
@@ -675,6 +697,134 @@ reutiliza o número da tentativa e a chave idempotente. Não altere o payload de
 tentativa cujo resultado externo é desconhecido; o mock rejeita essa alteração.
 Recusas confirmadas, por outro lado, permitem alterar o método na próxima tentativa.
 
+#### Exemplos completos da resposta ao cliente
+
+Os exemplos abaixo são cenários independentes para o mesmo pedido ilustrativo.
+Os UUIDs e códigos são exemplos; os valores de pagamento estão em reais.
+A aprovação e a recusa retornam HTTP 200 na rota Raízes. O JSON de estorno é
+consultado pelo GET do pagamento depois de cancelar o pedido.
+
+**Pagamento aprovado:**
+```json
+{
+  "id": "22222222-2222-4222-8222-222222222222",
+  "pedidoId": "11111111-1111-4111-8111-111111111111",
+  "status": "APROVADO",
+  "metodo": "MOCK",
+  "valor": 53.82,
+  "codigoTransacaoMock": "MOCK-33333333-3333-4333-8333-333333333333",
+  "respostaMock": "Pagamento mock aprovado.",
+  "valorFidelidade": 0.0,
+  "valorExterno": 53.82,
+  "numeroTentativa": 1,
+  "solicitacaoServico": {
+    "pedidoId": "11111111-1111-4111-8111-111111111111",
+    "canalPedido": "APP",
+    "metodo": "MOCK",
+    "valor": 53.82,
+    "moeda": "BRL",
+    "aprovadoMock": true,
+    "numeroTentativa": 1
+  },
+  "retornoServico": {
+    "pedidoId": "11111111-1111-4111-8111-111111111111",
+    "codigoTransacao": "MOCK-33333333-3333-4333-8333-333333333333",
+    "status": "APROVADO",
+    "valor": 53.82,
+    "moeda": "BRL",
+    "mensagem": "Pagamento mock aprovado."
+  },
+  "statusHttpServico": 201,
+  "estornoServico": null,
+  "statusHttpEstorno": null
+}
+```
+
+**Pagamento recusado:**
+```json
+{
+  "id": "22222222-2222-4222-8222-222222222222",
+  "pedidoId": "11111111-1111-4111-8111-111111111111",
+  "status": "RECUSADO",
+  "metodo": "MOCK",
+  "valor": 53.82,
+  "codigoTransacaoMock": "MOCK-33333333-3333-4333-8333-333333333333",
+  "respostaMock": "Pagamento mock recusado.",
+  "valorFidelidade": 0.0,
+  "valorExterno": 53.82,
+  "numeroTentativa": 1,
+  "solicitacaoServico": {
+    "pedidoId": "11111111-1111-4111-8111-111111111111",
+    "canalPedido": "APP",
+    "metodo": "MOCK",
+    "valor": 53.82,
+    "moeda": "BRL",
+    "aprovadoMock": false,
+    "numeroTentativa": 1
+  },
+  "retornoServico": {
+    "pedidoId": "11111111-1111-4111-8111-111111111111",
+    "codigoTransacao": "MOCK-33333333-3333-4333-8333-333333333333",
+    "status": "RECUSADO",
+    "valor": 53.82,
+    "moeda": "BRL",
+    "mensagem": "Pagamento mock recusado."
+  },
+  "statusHttpServico": 201,
+  "estornoServico": null,
+  "statusHttpEstorno": null
+}
+```
+
+**Pagamento estornado após cancelamento:**
+```json
+{
+  "id": "22222222-2222-4222-8222-222222222222",
+  "pedidoId": "11111111-1111-4111-8111-111111111111",
+  "status": "ESTORNADO",
+  "metodo": "MOCK",
+  "valor": 53.82,
+  "codigoTransacaoMock": "MOCK-33333333-3333-4333-8333-333333333333",
+  "respostaMock": "Pagamento mock aprovado.",
+  "valorFidelidade": 0.0,
+  "valorExterno": 53.82,
+  "numeroTentativa": 1,
+  "solicitacaoServico": {
+    "pedidoId": "11111111-1111-4111-8111-111111111111",
+    "canalPedido": "APP",
+    "metodo": "MOCK",
+    "valor": 53.82,
+    "moeda": "BRL",
+    "aprovadoMock": true,
+    "numeroTentativa": 1
+  },
+  "retornoServico": {
+    "pedidoId": "11111111-1111-4111-8111-111111111111",
+    "codigoTransacao": "MOCK-33333333-3333-4333-8333-333333333333",
+    "status": "APROVADO",
+    "valor": 53.82,
+    "moeda": "BRL",
+    "mensagem": "Pagamento mock aprovado."
+  },
+  "statusHttpServico": 201,
+  "estornoServico": {
+    "pagamentoId": "22222222-2222-4222-8222-222222222222",
+    "codigoEstorno": "ESTORNO-44444444-4444-4444-8444-444444444444",
+    "status": "ESTORNADO",
+    "valor": 53.82,
+    "moeda": "BRL",
+    "mensagem": "Estorno mock aprovado."
+  },
+  "statusHttpEstorno": 201
+}
+```
+
+`statusHttpServico` e `statusHttpEstorno` são códigos retornados pelo mock, não
+os códigos HTTP das rotas da API Raízes. No estorno, os campos `retornoServico`,
+`codigoTransacaoMock` e `respostaMock` preservam a aprovação original; o estado
+atual é `status: ESTORNADO`, com os detalhes em `estornoServico`.
+Sem estorno, `estornoServico` e `statusHttpEstorno` são nulos.
+
 #### Buscar pagamento por pedido
 `GET /pagamentos/pedidos/{pedidoId}`  
 *Acesso: usuário autenticado*
@@ -732,11 +882,19 @@ retroativa de pontos a pagamentos anteriores a esta implementação.
 }
 ```
 
-Os campos são acumulados da conta: `pontosGanhos` mostra o total ganho,
-`pontosConvertidos` mostra quantos já viraram crédito, `creditoConvertido` informa
-esse valor em reais e `restante` mostra os pontos ainda não convertidos.
-`saldoCredito` é o crédito disponível após pagamentos; pode ser menor que o total
-convertido. O campo JSON anterior `pontos` foi substituído por `restante`.
+Os campos são acumulados da conta e representam os valores líquidos após estornos:
+
+- `pontosGanhos`: total de pontos ainda válidos, excluindo os ganhos de compras estornadas;
+- `pontosConvertidos`: pontos convertidos em crédito, descontadas as conversões revertidas;
+- `creditoConvertido`: valor dessas conversões em reais, já descontados os estornos;
+- `restante`: `pontosGanhos - pontosConvertidos`, ainda não convertido;
+- `saldoCredito`: crédito líquido menos o valor usado em pagamentos não estornados.
+
+`saldoCredito` pode ser menor que `creditoConvertido` e até negativo se uma compra
+cancelada tiver gerado crédito já gasto em outro pedido. Nesse caso, novos ganhos
+compensam a diferença. O histórico mantém as conversões originais e suas reversões
+negativas (`ESTORNO_CONVERSAO`); a consulta do saldo não representa o total bruto
+histórico de todos os ganhos. O campo JSON anterior `pontos` foi substituído por `restante`.
 
 `GET /fidelidade/saldo/{clienteId}` permite consulta pelo titular ou ADMIN.
 Outros usuários recebem 403; conta inexistente retorna 404.
@@ -794,11 +952,15 @@ registros antigos de brinde não representam crédito monetário.
 
 A aplicação registra automaticamente estas ações no banco:
 - `CRIAR_PEDIDO`: criação de pedido.
-- `ATUALIZAR_STATUS_PEDIDO`: alteração operacional do status.
+- `ATUALIZAR_STATUS_PEDIDO`: alteração operacional do status, exceto cancelamento.
+- `CANCELAR_PEDIDO`: cancelamento manual ou expiração, incluindo motivo e reposição/perda de estoque.
 - `PROCESSAR_PAGAMENTO`: registro de pagamento aprovado ou recusado.
 
-O registro identifica o usuário que executou a ação, o recurso afetado, os detalhes
-e a data/hora. Cadastros, atualizações e desativações de usuários, produtos e unidades,
+O registro identifica o recurso afetado, os detalhes, a data/hora e o usuário executor
+nas operações manuais. Na expiração automática, o executor é o sistema e `usuarioId`
+é nulo; a ação continua sendo `CANCELAR_PEDIDO`, com motivo `PRAZO_PAGAMENTO_EXPIRADO`.
+O estorno fica registrado no pagamento e associado ao cancelamento; não existe uma
+ação de auditoria separada chamada `ESTORNAR_PAGAMENTO`. Cadastros, atualizações e desativações de usuários, produtos e unidades,
 assim como movimentações manuais de estoque, não geram auditoria atualmente.
 Não há endpoint público para consultar esses registros.
 
