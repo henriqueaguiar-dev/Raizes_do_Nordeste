@@ -42,8 +42,10 @@ public class PedidoEntidade {
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal subtotal;
+
     @Column(name = "valor_desconto", nullable = false, precision = 10, scale = 2)
     private BigDecimal valorDesconto;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal total;
 
@@ -58,7 +60,9 @@ public class PedidoEntidade {
 
     @Column(name="expira_em",nullable=false) private OffsetDateTime expiraEm;
     private String motivoCancelamento;
+
     private boolean estoqueReposto;
+
     public OffsetDateTime getExpiraEm(){ return expiraEm; }
     public void definirExpiraEm(OffsetDateTime prazo){ this.expiraEm=prazo; }
     public String getMotivoCancelamento(){ return motivoCancelamento; }

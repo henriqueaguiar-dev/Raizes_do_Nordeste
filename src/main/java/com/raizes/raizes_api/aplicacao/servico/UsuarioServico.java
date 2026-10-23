@@ -76,29 +76,36 @@ public class UsuarioServico {
 
         return paraResposta(usuarioSalvo);
     }
-    
 
     @Transactional
-    public UsuarioResposta atualizar(UUID id, AtualizarUsuarioRequisicao requisicao) {
+    public UsuarioResposta atualizar(
+            UUID id,
+            AtualizarUsuarioRequisicao requisicao) {
+
         UsuarioEntidade usuarioAtual = usuarioRepositorio.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoExcecao("Usuario nao encontrado."));
+                .orElseThrow(() -> new RecursoNaoEncontradoExcecao(
+                        "Usuario nao encontrado."));
 
         if (!usuarioAtual.getEmail().equals(requisicao.getEmail())
                 && usuarioRepositorio.existsByEmail(requisicao.getEmail())) {
+
             throw new RegraDeNegocioExcecao("Email ja cadastrado.");
         }
 
+        String senhaHash = passwordEncoder.encode(requisicao.getSenha());
+
         UsuarioEntidade usuarioAtualizado = new UsuarioEntidade(
                 usuarioAtual.getId(),
-                requisicao.getNome(),
+                usuarioAtual.getNome(),
                 requisicao.getEmail(),
-                usuarioAtual.getSenhaHash(),
+                senhaHash,
                 usuarioAtual.getPerfil(),
                 usuarioAtual.isAtivo(),
-                requisicao.getConsentimentoLgpd(),
+                usuarioAtual.isConsentimentoLgpd(),
                 usuarioAtual.getCriadoEm(),
                 usuarioAtual.getUnidadeId());
 
+        // 5. Salva e retorna os dados publicos do usuario.
         return paraResposta(usuarioRepositorio.save(usuarioAtualizado));
     }
 
@@ -145,5 +152,5 @@ public class UsuarioServico {
                 usuario.isAtivo(),
                 usuario.isConsentimentoLgpd());
     }
-    
+
 }

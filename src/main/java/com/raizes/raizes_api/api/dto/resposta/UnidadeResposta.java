@@ -8,9 +8,11 @@ public class UnidadeResposta {
     private String nome;
     private String endereco;
     private boolean ativa;
+    private String codigoUnidade;
 
-    public UnidadeResposta(UUID id, String nome, String endereco, boolean ativa) {
+    public UnidadeResposta(UUID id, String codigoUnidade, String nome, String endereco, boolean ativa) {
         this.id = id;
+        this.codigoUnidade = codigoUnidade;
         this.nome = nome;
         this.endereco = endereco;
         this.ativa = ativa;
@@ -18,6 +20,10 @@ public class UnidadeResposta {
 
     public UUID getId() {
         return id;
+    }
+
+    public String getCodigoUnidade() {
+        return codigoUnidade;
     }
 
     public String getNome() {

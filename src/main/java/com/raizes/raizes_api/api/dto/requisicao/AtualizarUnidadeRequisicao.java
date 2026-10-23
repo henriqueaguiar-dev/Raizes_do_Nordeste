@@ -6,6 +6,10 @@ import jakarta.validation.constraints.Size;
 
 public class AtualizarUnidadeRequisicao {
 
+    @NotBlank(message = "O codigo da unidade e obrigatorio.")
+    @Size(max = 30)
+    private String codigoUnidade;
+
     @NotBlank(message = "O nome da unidade e obrigatorio.")
     @Size(max = 120, message = "O nome deve ter no maximo 120 caracteres.")
     private String nome;
@@ -16,6 +20,10 @@ public class AtualizarUnidadeRequisicao {
 
     @NotNull(message = "O status ativa e obrigatorio.")
     private Boolean ativa;
+
+    public String getCodigoUnidade() {
+        return codigoUnidade;
+    }   
 
     public String getNome() {
         return nome;

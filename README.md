@@ -84,7 +84,7 @@ Ao iniciar a aplicação, o sistema cria automaticamente um usuário administrad
 - **Senha:** Admin@123
 - **Perfil:** ADMIN
 
-*Use credenciais próprias nas variáveis de ambiente. O projeto ainda não oferece endpoint para troca de senha.*
+*Use credenciais próprias nas variáveis de ambiente. Email e senha podem ser alterados pelo PUT de atualização de usuário, conforme as permissões descritas abaixo.*
 
 ## Como Iniciar o Projeto
 Para testar pagamentos, inicie o mock em um terminal separado com
@@ -184,19 +184,21 @@ A documentação da API está disponível em: [http://localhost:8080/swagger-ui/
 - `PUT /usuarios/{id}` e `DELETE /usuarios/{id}`: CLIENTE titular ou ADMIN.
 - `PUT /usuarios/internos/{id}` e `DELETE /usuarios/internos/{id}`: somente ADMIN.
 
-PUT recebe `nome`, `email` e `consentimentoLgpd`; preserva senha, perfil, unidade e status ativo.
+PUT recebe `email` e `senha`; preserva nome, perfil, unidade, consentimento LGPD e status ativo.
+A senha enviada é armazenada como hash. O email deve ser válido e ter no máximo 160 caracteres;
+a senha deve ter entre 8 e 72 caracteres. Email já cadastrado para outro usuário retorna 409.
 DELETE marca o usuário como inativo, sem apagar o registro. A desativação impede novos logins;
-um JWT já emitido continua válido até expirar. Não existe endpoint de troca de senha neste projeto.
+um JWT já emitido continua válido até expirar. A troca de senha ocorre pelo mesmo PUT de atualização.
 
 **Exemplo de request para atualizar usuário (cliente ou interno):**
 ```json
 {
-  "nome": "Maria Atualizada",
   "email": "maria.atualizada@exemplo.com",
-  "consentimentoLgpd": true
+  "senha": "NovaSenha@123"
 }
 ```
-Os três campos são obrigatórios; o PUT não é uma atualização parcial.
+Os dois campos são obrigatórios; o PUT não é uma atualização parcial. Para alterar somente
+o email, envie também a senha que deseja manter; para alterar somente a senha, envie o email atual.
 
 #### Cadastrar usuário interno
 `POST /usuarios/internos`  
@@ -277,10 +279,14 @@ oito dígitos inteiros e duas casas decimais. `ativo: false` desativa o produto;
 **Request:**
 ```json
 {
+  "codigoUnidade": "RAIZES-001",
   "nome": "Unidade Centro",
   "endereco": "Rua Principal, 100"
 }
 ```
+
+`codigoUnidade`, `nome` e `endereco` são obrigatórios. O código aceita até 30 caracteres,
+o nome até 120 e o endereço até 255. O ID da unidade continua sendo um UUID gerado pela API.
 
 #### Listar unidades
 `GET /unidades`  
@@ -300,6 +306,7 @@ continuam consultáveis pelo ID, mas não oferecem cardápio público nem aceita
 **Request:**
 ```json
 {
+  "codigoUnidade": "RAIZES-001",
   "nome": "Unidade Centro",
   "endereco": "Rua Principal, 200",
   "ativa": true
@@ -848,9 +855,10 @@ Ao atualizar esta versão, reinicie a API e o mock para usar o contrato com
 ### Fidelidade
 
 O programa usa `consentimentoLgpd` como adesão à fidelidade nesta versão.
-Informe `true` no cadastro ou no `PUT /usuarios/{id}` para participar; `false`
-retira a participação. O PUT continua exigindo nome, email e consentimento.
-O consentimento é consultado no banco, sem necessidade de renovar o JWT.
+Informe `true` no cadastro para participar; `false` mantém o usuário fora do programa.
+A API atual não oferece endpoint para alterar ou revogar esse consentimento após o cadastro:
+o PUT de usuário recebe apenas email e senha e preserva o valor existente.
+As regras de fidelidade consultam o consentimento armazenado no banco.
 
 **Acúmulo:** 1 ponto por R$ 1,00 da parte paga pelo mock em pagamentos aprovados,
 com usuário ativo e consentimento. Centavos acumulam entre pagamentos elegíveis.
@@ -863,10 +871,9 @@ pagamento aprovado, mantendo o restante dos pontos. Exemplo: 250 pontos geram
 R$ 2,00 de crédito e deixam 50 pontos. Cada conversão é registrada no histórico.
 A parcela paga com crédito de fidelidade não gera novos pontos.
 
-Retirar o consentimento bloqueia novos ganhos, conversões e uso do crédito.
-Pontos, créditos e histórico anteriores são preservados e podem ser consultados.
-Ao aderir novamente, os saldos voltam a poder ser usados. Não há atribuição
-retroativa de pontos a pagamentos anteriores a esta implementação.
+Usuários sem consentimento não podem ganhar pontos, converter pontos ou usar crédito.
+Pontos, créditos e histórico já registrados são preservados e podem ser consultados.
+Não há atribuição retroativa de pontos a pagamentos anteriores a esta implementação.
 
 #### Consultar saldo
 `GET /fidelidade/saldo` — próprio usuário autenticado.

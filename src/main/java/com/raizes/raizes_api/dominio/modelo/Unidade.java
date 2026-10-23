@@ -5,6 +5,7 @@ import java.util.UUID;
 public class Unidade {
     
     private UUID id;
+    private String codigoUnidade;
     private String nome;
     private String endereco;
     private boolean ativa;
@@ -12,8 +13,9 @@ public class Unidade {
     public Unidade() {
     }
 
-    public Unidade(UUID id, String nome, String endereco, boolean ativa) {
+    public Unidade(UUID id, String codigoUnidade, String nome, String endereco, boolean ativa) {
         this.id = id;
+        this.codigoUnidade = codigoUnidade;
         this.nome = nome;
         this.endereco = endereco;
         this.ativa = ativa;
@@ -21,6 +23,10 @@ public class Unidade {
 
     public UUID getId() {
         return id;
+    }
+
+    public String getCodigoUnidade() {
+        return codigoUnidade;
     }
 
     public String getNome() {
@@ -34,7 +40,6 @@ public class Unidade {
     public boolean isAtiva() {
         return ativa;
     }
-
     
 
 }

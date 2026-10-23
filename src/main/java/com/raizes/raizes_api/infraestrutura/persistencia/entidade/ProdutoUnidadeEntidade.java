@@ -11,12 +11,16 @@ import java.util.UUID;
 @Table(name = "produto_unidade", uniqueConstraints = @UniqueConstraint(
         name = "uk_cardapio_unidade_produto", columnNames = {"unidade_id", "produto_id"}))
 public class ProdutoUnidadeEntidade {
+    
     @Id
     private UUID id;
+
     @Column(name = "unidade_id", nullable = false)
     private UUID unidadeId;
+
     @Column(name = "produto_id", nullable = false)
     private UUID produtoId;
+
     @Column(nullable = false)
     private boolean ativo;
 

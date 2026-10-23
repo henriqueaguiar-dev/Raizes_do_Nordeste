@@ -20,9 +20,12 @@ public class UnidadeServico {
         this.unidadeRepositorio = unidadeRepositorio;
     }
 
+    
+
     public UnidadeResposta criar(CriarUnidadeRequisicao requisicao) {
         UnidadeEntidade unidade = new UnidadeEntidade(
                 UUID.randomUUID(),
+                requisicao.getCodigoUnidade(),
                 requisicao.getNome(),
                 requisicao.getEndereco(),
                 true
@@ -53,6 +56,7 @@ public class UnidadeServico {
 
         UnidadeEntidade unidadeAtualizada = new UnidadeEntidade(
                 id,
+                requisicao.getCodigoUnidade(),
                 requisicao.getNome(),
                 requisicao.getEndereco(),
                 requisicao.getAtiva()
@@ -69,6 +73,7 @@ public class UnidadeServico {
 
         UnidadeEntidade unidadeDesativada = new UnidadeEntidade(
                 unidade.getId(),
+                unidade.getCodigoUnidade(),
                 unidade.getNome(),
                 unidade.getEndereco(),
                 false
@@ -80,6 +85,7 @@ public class UnidadeServico {
     private UnidadeResposta paraResposta(UnidadeEntidade unidade) {
         return new UnidadeResposta(
                 unidade.getId(),
+                unidade.getCodigoUnidade(),
                 unidade.getNome(),
                 unidade.getEndereco(),
                 unidade.isAtiva()

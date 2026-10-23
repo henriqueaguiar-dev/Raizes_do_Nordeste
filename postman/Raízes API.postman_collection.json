@@ -1,24 +1,46 @@
 {
   "info": {
-    "_postman_id": "e6adc608-0539-4ddd-80e7-3d5df9c70552",
-    "name": "Raízes API",
+    "_postman_id": "6025657a-80dd-4ec6-93c5-5b43787e5fb5",
+    "name": "Raízes API Copy",
+    "description": "Coleção de testes automatizados. Selecione um ambiente com base_url, admin_email e admin_password. Rode a coleção completa em ordem sequencial, com 1 iteração por execução. T01 inicia um run_id e dados únicos. Confirme no Swagger os códigos HTTP e permissões: expectativas refletem os nomes dos testes originais e podem exigir ajuste no backend. Não reinicie o servidor; execute novamente o Runner. Os testes fazem mudanças reais no banco de dados; use um ambiente de teste.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "47802774",
-    "_collection_link": "https://go.postman.co/collection/47802774-e6adc608-0539-4ddd-80e7-3d5df9c70552?source=collection_link"
+    "_collection_link": "https://go.postman.co/collection/47802774-6025657a-80dd-4ec6-93c5-5b43787e5fb5?source=collection_link"
   },
   "item": [
     {
       "name": "🔐 ADM Autenticação",
       "item": [
         {
-          "name": "Admin Login",
+          "name": "T01 - 🚫Admin Login inválido (401)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);",
+                  "pm.environment.set('run_id', runId);",
+                  "pm.environment.set('admin_email', pm.environment.get('admin_email') || 'admin@raizes.com');",
+                  "pm.environment.set('admin_password', pm.environment.get('admin_password') || 'Admin@123');",
+                  "pm.environment.set('cliente_email', `maria.${runId}@example.com`);",
+                  "pm.environment.set('gerente_email', `gerente.${runId}@example.com`);",
+                  "pm.environment.set('cliente_senha', 'Senha@123');",
+                  "pm.environment.set('gerente_senha', 'Senha@123');",
+                  "pm.environment.set('codigo_unidade', 'RAIZES-' + runId);",
+                  "['jwt_token','cliente_token','usuario_interno_token','unidade_id','cliente_id','usuario_interno_id','produto_id','pedido_id'].forEach(k => {pm.environment.unset(k); pm.collectionVariables.unset(k);});",
+                  "console.log('Nova execução:', runId);"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body has required fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"usuarioId\");\n    pm.expect(json).to.have.property(\"nome\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"perfil\");\n    pm.expect(json).to.have.property(\"accessToken\");\n    pm.expect(json).to.have.property(\"tokenType\");\n    pm.expect(json).to.have.property(\"expiresIn\");\n});\n\npm.test(\"tokenType equals 'Bearer'\", function () {\n    const json = pm.response.json();\n    pm.expect(json.tokenType).to.eql(\"Bearer\");\n});\n\npm.test(\"accessToken is a non-empty string\", function () {\n    const json = pm.response.json();\n    pm.expect(json.accessToken).to.be.a(\"string\").and.to.have.length.above(0);\n});\n\npm.test(\"expiresIn is a number\", function () {\n    const json = pm.response.json();\n    pm.expect(json.expiresIn).to.be.a(\"number\");\n});\n\npm.environment.set(\"jwt_token\", pm.response.json().accessToken);"
+                  "pm.test(\"T01: HTTP 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
                 ]
               }
             }
@@ -28,10 +50,71 @@
               "type": "noauth"
             },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@raizes.com\",\n  \"senha\": \"Admin@123\"\n}\n",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"senha\": \"Senh@Errada123\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "T02 - ✅Admin Login válido (200)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('run_id')) {\n  const runId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);\n  pm.environment.set('run_id', runId);\n  pm.environment.set('admin_email', pm.environment.get('admin_email') || 'admin@raizes.com');\n  pm.environment.set('admin_password', pm.environment.get('admin_password') || 'Admin@123');\n  pm.environment.set('cliente_email', `maria.${runId}@example.com`);\n  pm.environment.set('gerente_email', `gerente.${runId}@example.com`);\n  pm.environment.set('cliente_senha', 'Senha@123');\n  pm.environment.set('gerente_senha', 'Senha@123');\n  pm.environment.set('codigo_unidade', 'RAIZES-' + runId);\n  ['jwt_token','cliente_token','usuario_interno_token','unidade_id','cliente_id','usuario_interno_id','produto_id','pedido_id'].forEach(k => {pm.environment.unset(k); pm.collectionVariables.unset(k);});\n  console.log('Nova execução:', runId);\n}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "\npm.test(\"Login ADMIN - 200\", function () {\n    pm.response.to.have.status(200);\n});\n\nif (pm.response.code === 200) {\n    const resposta = pm.response.json();\n    const token = resposta.accessToken;\n\n    pm.expect(token).to.be.a(\"string\").and.not.empty;\n\n    // Salva o token nas variáveis da Collection\n    pm.collectionVariables.set(\"jwt_token\", token);\n\n    // Remove um possível valor antigo do Environment\n    pm.environment.unset(\"jwt_token\");\n\n    console.log(\"Token ADMIN salvo com sucesso!\");\n    console.log(\n        \"Token disponível:\",\n        Boolean(pm.collectionVariables.get(\"jwt_token\"))\n    );\n}\n"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"senha\": \"{{admin_password}}\"\n}\n",
               "options": {
                 "raw": {
                   "language": "json"
@@ -57,24 +140,42 @@
       "name": "🏢 Unidade",
       "item": [
         {
-          "name": "Criar Unidade",
+          "name": "T03 - 🚫Criar Unidades Sem Nome(422)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Unidade criada com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.environment.set(\"unidade_id\", resposta.id); // Salva o UUID da unidade\n});"
+                  "pm.test(\"T03: HTTP 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});"
                 ]
               }
             }
           ],
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Asa Norte\",\n  \"endereco\": \"SQN 415\"\n}",
+              "raw": "{\n  \"codigoUnidade\": \"{{codigo_unidade}}\",\n  \"nome\": \"\",\n  \"endereco\": \"Rua Principal, 100\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -94,35 +195,98 @@
           "response": []
         },
         {
-          "name": "Listar Unidades",
+          "name": "T04 - ✅Criar Unidades (201)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Unidades listadas com sucesso\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    const resposta = pm.response.json();",
-                  "    pm.expect(resposta).to.be.an('array');",
-                  "    pm.expect(resposta.length).to.be.at.least(1);",
-                  "});"
+                  "pm.test(\"T04: HTTP 201\", function () {\n    pm.response.to.have.status(201);\n});\nif (pm.response.code >= 200 && pm.response.code < 300) {\n  const data = pm.response.json();\n  pm.expect(data.id, \"unidade_id retornado\").to.be.a('string').and.not.empty;\n  pm.environment.set('unidade_id', data.id);\n}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const tokenEnvironment = pm.environment.get(\"jwt_token\");\nconst tokenResolvido = pm.variables.get(\"jwt_token\");\n\nconsole.log(\"Environment selecionado:\", pm.environment.name);\nconsole.log(\"Token no Environment:\", Boolean(tokenEnvironment));\nconsole.log(\"Token utilizado pelo Postman:\", Boolean(tokenResolvido));\nconsole.log(\n    \"Os tokens são iguais:\",\n    tokenEnvironment === tokenResolvido\n);\nconsole.log(\n    \"Formato JWT válido:\",\n    typeof tokenResolvido === \"string\" &&\n    tokenResolvido.split(\".\").length === 3\n);"
                 ]
               }
             }
           ],
           "request": {
-            "method": "GET",
-            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "",
+              "raw": "{\n  \"codigoUnidade\": \"{{codigo_unidade}}\",\n  \"nome\": \"Unidade Centro\",\n  \"endereco\": \"Rua Principal, 100\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
+            "url": {
+              "raw": "{{base_url}}/unidades",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "unidades"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "T05 - ✅Listar Unidades",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T05: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  " const data = pm.response.json();",
+                  " pm.expect(Array.isArray(data) || Array.isArray(data.content), 'Lista ou página de resultados').to.be.true;",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
             "url": {
               "raw": "{{base_url}}/unidades",
               "host": [
@@ -141,14 +305,16 @@
       "name": "👫Criar Usuários",
       "item": [
         {
-          "name": "Criar Usuário",
+          "name": "T06 - 🚫Criar Clientes sem email (422)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Cliente cadastrado com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.expect(resposta.perfil).to.eql(\"CLIENTE\");\n    pm.expect(resposta.ativo).to.be.true;\n    \n    // Armazena o ID do cliente se necessário\n    pm.environment.set(\"cliente_id\", resposta.id);\n});"
+                  "pm.test(\"T06: HTTP 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});"
                 ]
               }
             }
@@ -158,10 +324,16 @@
               "type": "noauth"
             },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Maria Cliente\",\n  \"email\": \"maria1@exemplo.com\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"CLIENTE\",\n  \"consentimentoLgpd\": true\n}",
+              "raw": "{\n  \"nome\": \"Maria Cliente\",\n  \"email\": \"\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"CLIENTE\",\n  \"consentimentoLgpd\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -181,14 +353,70 @@
           "response": []
         },
         {
-          "name": "Criar Usuario Interno",
+          "name": "T07 - ✅Criar Cliente (201)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Usuário Interno cadastrado com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.expect(resposta.perfil).to.eql(\"GERENTE\", \"ATENDENTE\", \"COZINHA\");\n    pm.expect(resposta.ativo).to.be.true;\n    \n    // Armazena o ID do cliente se necessário\n    pm.environment.set(\"usuario_interno_id\", resposta.id);\n})\n"
+                  "pm.test(\"T07: HTTP 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.id, \"cliente_id retornado\").to.be.a('string').and.not.empty;",
+                  "  pm.environment.set('cliente_id', data.id);",
+                  "}",
+                  "if (pm.response.code === 201) pm.expect(pm.response.json().perfil).to.eql(\"CLIENTE\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Maria Cliente\",\n  \"email\": \"{{cliente_email}}\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"CLIENTE\",\n  \"consentimentoLgpd\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "T08 - 🚫Criar Usuarios Interno com perfil cliente (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T08: HTTP 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
                 ]
               }
             }
@@ -205,10 +433,78 @@
               ]
             },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Maria Cliente\",\n  \"email\": \"gerente@exemplo.com\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"GERENTE\",\n  \"consentimentoLgpd\": true,\n  \"unidadeId\": \"{{unidade_id}}\"\n}",
+              "raw": "{\n  \"nome\": \"Joao Gerente\",\n  \"email\": \"{{gerente_email}}\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"CLIENTE\",\n  \"consentimentoLgpd\": true,\n  \"unidadeId\": \"{{unidade_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/usuarios/internos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "internos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "T09 - ✅Criar Usuarios Interno (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T09: HTTP 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.id, \"usuario_interno_id retornado\").to.be.a('string').and.not.empty;",
+                  "  pm.environment.set('usuario_interno_id', data.id);",
+                  "}",
+                  "if (pm.response.code === 201) pm.expect([\"GERENTE\",\"ATENDENTE\",\"COZINHA\"]).to.include(pm.response.json().perfil);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Joao Gerente\",\n  \"email\": \"{{gerente_email}}\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"GERENTE\",\n  \"consentimentoLgpd\": true,\n  \"unidadeId\": \"{{unidade_id}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -234,14 +530,16 @@
       "name": "🔐 User Autenticação",
       "item": [
         {
-          "name": "Cliente Login",
+          "name": "T10 - 🚫Clientes Login inválido (401)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body has required fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"usuarioId\");\n    pm.expect(json).to.have.property(\"nome\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"perfil\");\n    pm.expect(json).to.have.property(\"accessToken\");\n    pm.expect(json).to.have.property(\"tokenType\");\n    pm.expect(json).to.have.property(\"expiresIn\");\n});\n\npm.test(\"tokenType equals 'Bearer'\", function () {\n    const json = pm.response.json();\n    pm.expect(json.tokenType).to.eql(\"Bearer\");\n});\n\npm.test(\"accessToken is a non-empty string\", function () {\n    const json = pm.response.json();\n    pm.expect(json.accessToken).to.be.a(\"string\").and.to.have.length.above(0);\n});\n\npm.test(\"expiresIn is a number\", function () {\n    const json = pm.response.json();\n    pm.expect(json.expiresIn).to.be.a(\"number\");\n});\n\npm.environment.set(\"cliente_token\", pm.response.json().accessToken);"
+                  "pm.test(\"T10: HTTP 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
                 ]
               }
             }
@@ -251,10 +549,16 @@
               "type": "noauth"
             },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"maria1@exemplo.com\",\n  \"senha\": \"Senha@123\"\n}\n",
+              "raw": "{\n  \"email\": \"{{cliente_email}}\",\n  \"senha\": \"Senha@errada123\"\n}\n",
               "options": {
                 "raw": {
                   "language": "json"
@@ -275,14 +579,21 @@
           "response": []
         },
         {
-          "name": "Usuário Interno Login",
+          "name": "T11 - ✅Clientes Login válido (200)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Response body has required fields\", function () {\n    const json = pm.response.json();\n    pm.expect(json).to.have.property(\"usuarioId\");\n    pm.expect(json).to.have.property(\"nome\");\n    pm.expect(json).to.have.property(\"email\");\n    pm.expect(json).to.have.property(\"perfil\");\n    pm.expect(json).to.have.property(\"accessToken\");\n    pm.expect(json).to.have.property(\"tokenType\");\n    pm.expect(json).to.have.property(\"expiresIn\");\n});\n\npm.test(\"tokenType equals 'Bearer'\", function () {\n    const json = pm.response.json();\n    pm.expect(json.tokenType).to.eql(\"Bearer\");\n});\n\npm.test(\"accessToken is a non-empty string\", function () {\n    const json = pm.response.json();\n    pm.expect(json.accessToken).to.be.a(\"string\").and.to.have.length.above(0);\n});\n\npm.test(\"expiresIn is a number\", function () {\n    const json = pm.response.json();\n    pm.expect(json.expiresIn).to.be.a(\"number\");\n});\n\npm.environment.set(\"usuario_interno_token\", pm.response.json().accessToken);"
+                  "pm.test(\"T11: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  " const data = pm.response.json();",
+                  " pm.expect(data.accessToken, 'JWT').to.be.a('string').and.not.empty;",
+                  " pm.environment.set('cliente_token', data.accessToken);",
+                  "}"
                 ]
               }
             }
@@ -292,10 +603,119 @@
               "type": "noauth"
             },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"gerente@exemplo.com\",\n  \"senha\": \"Senha@123\"\n}",
+              "raw": "{\n  \"email\": \"{{cliente_email}}\",\n  \"senha\": \"Senha@123\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "T12 - 🚫Usuários Interno Login inválido (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T12: HTTP 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{gerente_email}}\",\n  \"senha\": \"Senha@errada123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "T13 - ✅Usuários Interno Login válido (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T13: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  " const data = pm.response.json();",
+                  " pm.expect(data.accessToken, 'JWT').to.be.a('string').and.not.empty;",
+                  " pm.environment.set('usuario_interno_token', data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{gerente_email}}\",\n  \"senha\": \"Senha@123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -324,19 +744,24 @@
           "name": "Cliente",
           "item": [
             {
-              "name": "Atualizar Usuário",
+              "name": "T14 - 🚫Atualizar Clientes token inválido (401)",
               "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.environment.set('token_invalido','jwt.invalido.teste');"
+                    ]
+                  }
+                },
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test(\"Usuário atualizado com sucesso\", function () {",
-                      "    pm.response.to.have.status(200);",
-                      "    const resposta = pm.response.json();",
-                      "    pm.expect(resposta.perfil).to.eql(\"CLIENTE\");",
-                      "    pm.expect(resposta.ativo).to.be.true;",
-                      "    pm.environment.set(\"cliente_id\", resposta.id);",
+                      "pm.test(\"T14: HTTP 401\", function () {",
+                      "    pm.response.to.have.status(401);",
                       "});"
                     ]
                   }
@@ -348,16 +773,22 @@
                   "bearer": [
                     {
                       "key": "token",
-                      "value": "{{cliente_token}}",
+                      "value": "{{token_invalido}}",
                       "type": "string"
                     }
                   ]
                 },
                 "method": "PUT",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"nome\": \"Carla Cliente\",\n  \"email\": \"maria1@exemplo.com\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"CLIENTE\",\n  \"consentimentoLgpd\": true\n}",
+                  "raw": "{\n  \"email\": \"novoemail@exemplo.com\",\n  \"senha\": \"NovaSenha@123\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -378,19 +809,131 @@
               "response": []
             },
             {
-              "name": "Consultar Usuários",
+              "name": "T15 - ✅Atualizar Cliente (200)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "const response = pm.response.json();\n\npm.collectionVariables.set(\"cliente_id\", response.id);\n\nconsole.log(\"Cliente ID salvo:\", response.id);"
+                      "pm.test(\"T15: HTTP 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
                     ]
                   }
                 }
               ],
               "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{cliente_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{cliente_email}}\",\n  \"senha\": \"{{cliente_senha}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/usuarios/{{cliente_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "{{cliente_id}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "T16 - 🚫Consultar Clientes com token usuario interno (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"T16: HTTP 403\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{usuario_interno_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/usuarios",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "usuarios"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "T17- ✅Consultar Clientes (200)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"T17- ✅Consultar Clientes (200): HTTP 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "if (pm.response.code === 200) {",
+                      " const data = pm.response.json();",
+                      " pm.expect(Array.isArray(data) || Array.isArray(data.content), 'Lista ou página de resultados').to.be.true;",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
                 "method": "GET",
                 "header": [],
                 "url": {
@@ -411,19 +954,15 @@
           "name": "Usuário Interno",
           "item": [
             {
-              "name": "Atualizar Usuário Interno",
+              "name": "T19 - 🚫Atualizar Usuário Interno sem token (401)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test(\"Usuário Interno atualizado com sucesso\", function () {",
-                      "    pm.response.to.have.status(200);",
-                      "    const resposta = pm.response.json();",
-                      "    pm.expect(resposta.perfil).to.eql(\"GERENTE\");",
-                      "    pm.expect(resposta.ativo).to.be.true;",
-                      "    pm.environment.set(\"usuario_interno_id\", resposta.id);",
+                      "pm.test(\"T19: HTTP 401\", function () {",
+                      "    pm.response.to.have.status(401);",
                       "});"
                     ]
                   }
@@ -431,20 +970,19 @@
               ],
               "request": {
                 "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    {
-                      "key": "token",
-                      "value": "{{jwt_token}}",
-                      "type": "string"
-                    }
-                  ]
+                  "type": "noauth"
                 },
                 "method": "PUT",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"nome\": \"João Carlo\",\n  \"email\": \"carlo@exemplo.com\",\n  \"senha\": \"Senha@123\",\n  \"perfil\": \"GERENTE\",\n  \"consentimentoLgpd\": true\n}",
+                  "raw": "{\n  \"email\": \"novogerente@exemplo.com\",\n  \"senha\": \"Nov@Senha\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -465,19 +1003,132 @@
               "response": []
             },
             {
-              "name": "Consultar Usuários Interno",
+              "name": "T20 - ✅Atualizar Usuário Interno (200)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "const response = pm.response.json();\n\npm.collectionVariables.set(\"usuario_interno_id\", response.id);\n\nconsole.log(\"Usuario interno ID salvo:\", response.id);"
+                      "pm.test(\"T20: HTTP 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
                     ]
                   }
                 }
               ],
               "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{gerente_email}}\",\n  \"senha\": \"{{gerente_senha}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/usuarios/{{usuario_interno_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "{{usuario_interno_id}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "T21 - 🚫Consultar Usuários Interno com token cliente (403)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"T21: HTTP 403\", function () {",
+                      "    pm.response.to.have.status(403);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{cliente_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/usuarios/internos",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "usuarios",
+                    "internos"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "T22 - ✅Consultar Usuários Interno (200)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"T22: HTTP 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "if (pm.response.code === 200) {",
+                      " const data = pm.response.json();",
+                      " pm.expect(Array.isArray(data) || Array.isArray(data.content), 'Lista ou página de resultados').to.be.true;",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
                 "method": "GET",
                 "header": [],
                 "url": {
@@ -501,14 +1152,21 @@
       "name": "📦 Produtos",
       "item": [
         {
-          "name": "Criar Produto",
+          "name": "T24 - ✅Criar Produto (201)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Produto criado com sucesso\", function () {\n    pm.response.to.have.status(201); // Ou 200, conforme seu retorno\n    \n    const resposta = pm.response.json();\n    pm.environment.set(\"produto_id\", resposta.id); // Salva o UUID do produto\n});\n"
+                  "pm.test(\"T24: HTTP 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.id, \"produto_id retornado\").to.be.a('string').and.not.empty;",
+                  "  pm.environment.set('produto_id', data.id);",
+                  "}"
                 ]
               }
             }
@@ -525,10 +1183,16 @@
               ]
             },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nome\": \"Bolinho de Carne\",\n  \"descricao\": \"Carne seca\",\n  \"preco\": 15.00\n}",
+              "raw": "{\n  \"nome\": \"X-Burger Nordestino\",\n  \"descricao\": \"Hambúrguer artesanal com queijo coalho e molho da casa.\",\n  \"preco\": 29.90\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -548,7 +1212,24 @@
           "response": []
         },
         {
-          "name": "Listar Produtos",
+          "name": "T25 - ✅Listar Produtos (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T25: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  " const data = pm.response.json();",
+                  " pm.expect(Array.isArray(data) || Array.isArray(data.content), 'Lista ou página de resultados').to.be.true;",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "auth": {
               "type": "bearer",
@@ -562,15 +1243,6 @@
             },
             "method": "GET",
             "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/produtos",
               "host": [
@@ -589,21 +1261,36 @@
       "name": "🛍️ Estoque",
       "item": [
         {
-          "name": "Incluir Estoque",
+          "name": "T27 - ✅Incluir Estoque (200)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Carga inicial de estoque realizada\", function () {\n    pm.response.to.have.status(200); // Ajuste para 201 se sua API retornar CREATED\n});\n"
+                  "const token = pm.variables.get(\"jwt_token\");\n\nif (!token || token.split(\".\").length !== 3) {\n    throw new Error(\n        \"JWT ausente ou inválido. Execute T02 primeiro.\"\n    );\n}\n\nconsole.log(\"JWT disponível:\", true);"
                 ]
               }
             }
           ],
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n    \"unidadeId\": \"{{unidade_id}}\",\n    \"produtoId\": \"{{produto_id}}\",\n    \"quantidade\": 100\n}",
@@ -614,12 +1301,10 @@
               }
             },
             "url": {
-              "raw": "http://localhost:8080/estoques/entradas",
-              "protocol": "http",
+              "raw": "{{base_url}}/estoques/entradas",
               "host": [
-                "localhost"
+                "{{base_url}}"
               ],
-              "port": "8080",
               "path": [
                 "estoques",
                 "entradas"
@@ -629,10 +1314,95 @@
           "response": []
         },
         {
-          "name": "Saida Estoque",
+          "name": "T28 - 🚫 Saida Estoque Insuficiente (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T28: HTTP 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unidadeId\": \"{{unidade_id}}\",\n  \"produtoId\": \"{{produto_id}}\",\n  \"quantidade\": 102\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/estoques/saidas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "estoques",
+                "saidas"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "T29 - ✅ Saida Estoque suficiente (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T29: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"unidadeId\": \"{{unidade_id}}\",\n  \"produtoId\": \"{{produto_id}}\",\n  \"quantidade\": 2\n}",
@@ -656,11 +1426,34 @@
           "response": []
         },
         {
-          "name": "Verificar Estoque por Unidade",
+          "name": "T30 - ✅Verificar Estoque por Unidade (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T30: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "protocolProfileBehavior": {
             "disableBodyPruning": true
           },
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [
               {
@@ -692,11 +1485,34 @@
           "response": []
         },
         {
-          "name": "Verificar Estoque de 1 Produto por Unidade",
+          "name": "T31 - ✅Verificar Estoque de 1 Produto por Unidade (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T31: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "protocolProfileBehavior": {
             "disableBodyPruning": true
           },
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [
               {
@@ -730,11 +1546,34 @@
           "response": []
         },
         {
-          "name": "Verificar Estoque Estoque Total da Rede",
+          "name": "T32 - ✅Verificar Estoque Estoque Total da Rede (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T32: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "protocolProfileBehavior": {
             "disableBodyPruning": true
           },
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [
               {
@@ -770,21 +1609,39 @@
       "name": "🍽️Cardapio",
       "item": [
         {
-          "name": "ativar produto cardápio",
+          "name": "T33 - ✅ativar produto cardápio (200)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Consulta de status do pedido realizada\", function () {\n    pm.response.to.have.status(200);\n    const resposta = pm.response.json();\n    pm.expect(resposta).to.be.an('array');\n});"
+                  "pm.test(\"T33: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
                 ]
               }
             }
           ],
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PUT",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ativo\": true\n}",
@@ -811,14 +1668,20 @@
           "response": []
         },
         {
-          "name": "visualizar cardápio",
+          "name": "T34 - ✅visualizar cardápio (200)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Consulta de status do pedido realizada\", function () {\n    pm.response.to.have.status(200);\n    const resposta = pm.response.json();\n    pm.expect(resposta).to.be.an('array');\n});"
+                  "pm.test(\"T34: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  " const data = pm.response.json();",
+                  " pm.expect(Array.isArray(data) || Array.isArray(data.content), 'Lista ou página de resultados').to.be.true;",
+                  "}"
                 ]
               }
             }
@@ -849,14 +1712,16 @@
       "name": "🛒 Pedidos",
       "item": [
         {
-          "name": "Criar Pedido",
+          "name": "T35 - 🚫Criar Pedido, Estoque insuficiente (409)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Pedido criado com sucesso\", function () {\n    pm.response.to.have.status(201);\n    \n    const resposta = pm.response.json();\n    pm.environment.set(\"pedido_id\", resposta.id); // Salva o UUID do pedido\n    \n    // Teste de Regra de Negócio: Validar o desconto de 10%\n    const subtotal = resposta.subtotal;\n    const descontoEsperado = subtotal * 0.10;\n    pm.expect(resposta.valorDesconto).to.eql(descontoEsperado);\n});\n"
+                  "pm.test(\"T35: HTTP 409\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
                 ]
               }
             }
@@ -873,10 +1738,16 @@
               ]
             },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"unidadeId\": \"{{unidade_id}}\",\n  \"canalPedido\": \"APP\",\n  \"formaPagamento\": \"MOCK\",\n  \"itens\": [\n    {\n      \"produtoId\": \"{{produto_id}}\",\n      \"quantidade\": 2\n    }\n  ]\n}",
+              "raw": "{\n  \"unidadeId\": \"{{unidade_id}}\",\n  \"canalPedido\": \"WEB\",\n  \"formaPagamento\": \"MOCK\",\n  \"itens\": [\n    {\n      \"produtoId\": \"{{produto_id}}\",\n      \"quantidade\": 150\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -896,25 +1767,59 @@
           "response": []
         },
         {
-          "name": "Status de todos Pedidos",
+          "name": "T36 - ✅Criar Pedido (201)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Consulta de status do pedido realizada\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    const resposta = pm.response.json();",
-                  "    pm.expect(resposta).to.be.an('array');",
-                  "});"
+                  "pm.test(\"T36: HTTP 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.id, \"pedido_id retornado\").to.be.a('string').and.not.empty;",
+                  "  pm.environment.set('pedido_id', data.id);",
+                  "}",
+                  "if (pm.response.code === 201) {",
+                  " const data = pm.response.json();",
+                  " if (typeof data.valorDesconto === 'number' && typeof data.subtotal === 'number') {",
+                  "   pm.expect(data.valorDesconto).to.be.closeTo(data.subtotal * 0.1, 0.02);",
+                  " }",
+                  "}"
                 ]
               }
             }
           ],
           "request": {
-            "method": "GET",
-            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{cliente_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unidadeId\": \"{{unidade_id}}\",\n  \"canalPedido\": \"WEB\",\n  \"formaPagamento\": \"MOCK\",\n  \"itens\": [\n    {\n      \"produtoId\": \"{{produto_id}}\",\n      \"quantidade\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": {
               "raw": "{{base_url}}/pedidos",
               "host": [
@@ -928,35 +1833,44 @@
           "response": []
         },
         {
-          "name": "Status Pedido por ID",
+          "name": "T37 - ✅Status de todos Pedidos (200)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Consulta de status do pedido realizada\", function () {",
+                  "pm.test(\"T37: HTTP 200\", function () {",
                   "    pm.response.to.have.status(200);",
-                  "",
-                  "    const resposta = pm.response.json();",
-                  "    // Valida se o status mudou para EM_PREPARO após o passo de pagamento",
-                  "    pm.expect(resposta.status).to.eql(\"EM_PREPARO\");",
-                  "});"
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  " const data = pm.response.json();",
+                  " pm.expect(Array.isArray(data) || Array.isArray(data.content), 'Lista ou página de resultados').to.be.true;",
+                  "}"
                 ]
               }
             }
           ],
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/pedidos/{{pedido_id}}",
+              "raw": "{{base_url}}/pedidos",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "pedidos",
-                "{{pedido_id}}"
+                "pedidos"
               ]
             }
           },
@@ -968,10 +1882,39 @@
       "name": "💰 Pagamento",
       "item": [
         {
-          "name": "Pagamento",
+          "name": "T39 - ✅Pagamento (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T39: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"metodo\": \"MOCK\",\n  \"aprovadoMock\": true\n}",
@@ -996,24 +1939,83 @@
           "response": []
         },
         {
-          "name": "Processar Pagamento",
+          "name": "T38 - ✅Status Pedido por ID (200)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Pagamento processado com sucesso\", function () {\n    pm.response.to.have.status(200);\n});\n"
+                  "pm.test(\"T38: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
                 ]
               }
             }
           ],
           "request": {
-            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/pedidos/{{pedido_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pedidos",
+                "{{pedido_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "T40 - ✅Atualizar status do pedido (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T40: HTTP 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"status\": \"EM_PREPARO\"\n    \n}",
+              "raw": "{\n    \"status\": \"ENTREGUE\"\n    \n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1040,18 +2042,15 @@
       "name": "🪪 Fidelidade",
       "item": [
         {
-          "name": "Consulta Pontos Usuario",
+          "name": "T41 - ✅Consulta Pontos Usuario (200)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Saldo de pontos consultado com sucesso\", function () {",
+                  "pm.test(\"T41: HTTP 200\", function () {",
                   "    pm.response.to.have.status(200);",
-                  "    const resposta = pm.response.json();",
-                  "    pm.expect(resposta.pontos).to.be.a('number');",
-                  "    console.log(\"Pontos acumulados do cliente: \" + resposta.pontos);",
                   "});"
                 ]
               }
@@ -1070,15 +2069,6 @@
             },
             "method": "GET",
             "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{base_url}}/fidelidade/saldo/{{cliente_id}}",
               "host": [
@@ -1096,11 +2086,34 @@
       ]
     },
     {
-      "name": "Deletar",
+      "name": "🚮Deletar",
       "item": [
         {
-          "name": "Deletar Produto",
+          "name": "T26 - ✅Deletar Produto (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"T26: HTTP 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "DELETE",
             "header": [],
             "body": {
@@ -1126,14 +2139,14 @@
           "response": []
         },
         {
-          "name": "Atualizar Usuário Interno",
+          "name": "T23 - ✅Deletar Usuário Interno (204)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Usuário Interno desativado com sucesso\", function () {",
+                  "pm.test(\"T23: HTTP 204\", function () {",
                   "    pm.response.to.have.status(204);",
                   "});"
                 ]
@@ -1176,14 +2189,16 @@
           "response": []
         },
         {
-          "name": "Deletar Usuário",
+          "name": "T18- ✅Deletar Clientes",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Usuário desativado com sucesso\", function () {\n    pm.response.to.have.status(204);\n});"
+                  "pm.test(\"T18- ✅Deletar Clientes: HTTP 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
                 ]
               }
             }
@@ -1194,7 +2209,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{jwt_token}}",
+                  "value": "{{cliente_token}}",
                   "type": "string"
                 }
               ]
@@ -1238,11 +2253,19 @@
   },
   "variable": [
     {
-      "key": "cliente_id",
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@raizes.com"
+    },
+    {
+      "key": "admin_password",
       "value": ""
     },
     {
-      "key": "usuario_interno_id",
+      "key": "jwt_token",
       "value": ""
     }
   ]

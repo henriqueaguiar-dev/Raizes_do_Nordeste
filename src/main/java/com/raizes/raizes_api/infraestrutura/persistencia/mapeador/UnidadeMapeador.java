@@ -11,6 +11,7 @@ public class UnidadeMapeador {
     public static Unidade paraDominio(UnidadeEntidade entidade) {
         return new Unidade(
                 entidade.getId(),
+                entidade.getCodigoUnidade(),
                 entidade.getNome(),
                 entidade.getEndereco(),
                 entidade.isAtiva()
@@ -20,6 +21,7 @@ public class UnidadeMapeador {
     public static UnidadeEntidade paraEntidade(Unidade unidade) {
         return new UnidadeEntidade(
                 unidade.getId(),
+                unidade.getCodigoUnidade(),
                 unidade.getNome(),
                 unidade.getEndereco(),
                 unidade.isAtiva()

@@ -108,9 +108,7 @@ class UsuarioServicoAtualizarTest {
 
     private AtualizarUsuarioRequisicao requisicao(String nome, String email, boolean consentimento) {
         AtualizarUsuarioRequisicao requisicao = org.mockito.Mockito.mock(AtualizarUsuarioRequisicao.class);
-        when(requisicao.getNome()).thenReturn(nome);
         when(requisicao.getEmail()).thenReturn(email);
-        when(requisicao.getConsentimentoLgpd()).thenReturn(consentimento);
         return requisicao;
     }
 
