@@ -102,7 +102,7 @@ class FluxosApiTest {
     record Cenario(String admin, String cliente, String unidade, String produto) {}
     Cenario preparar(int quantidade, String preco) throws Exception {
         String a = admin();
-        String u = campo(enviar("/unidades", "{\"nome\":\"Unidade\",\"endereco\":\"Rua teste\"}", a, 201), "id");
+        String u = campo(enviar("/unidades", "{\"codigoUnidade\":\"" + UUID.randomUUID().toString().substring(0, 20) + "\",\"nome\":\"Unidade\",\"endereco\":\"Rua teste\"}", a, 201), "id");
         String p = campo(enviar("/produtos", "{\"nome\":\"Produto\",\"descricao\":\"Teste\",\"preco\":" + preco + "}", a, 201), "id");
         enviar("/estoques/entradas", movimento(u, p, quantidade), a, 200);
         configurarCardapio(a, u, p, true, 200);
@@ -211,7 +211,7 @@ class FluxosApiTest {
                 .contentType("application/json").content("{\"nome\":\"Novo\",\"descricao\":\"Teste\",\"preco\":12.00,\"ativo\":true}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.preco").value(12.00));
         mvc.perform(put("/unidades/"+c.unidade()).header("Authorization","Bearer "+c.admin())
-                .contentType("application/json").content("{\"nome\":\"Nova unidade\",\"endereco\":\"Outra rua\",\"ativa\":true}"))
+                .contentType("application/json").content("{\"codigoUnidade\":\"UNIDADE-ATUALIZADA\",\"nome\":\"Nova unidade\",\"endereco\":\"Outra rua\",\"ativa\":true}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.nome").value("Nova unidade"));
         mvc.perform(delete("/produtos/"+c.produto()).header("Authorization","Bearer "+c.admin())).andExpect(status().isNoContent());
         mvc.perform(get("/produtos/"+c.produto())).andExpect(status().isOk()).andExpect(jsonPath("$.ativo").value(false));
@@ -222,7 +222,7 @@ class FluxosApiTest {
 
     @Test void cardapioIsolaUnidadesEAtualizaDisponibilidadeAposVenda() throws Exception {
         Cenario c=preparar(1,"10.00");
-        String outra=campo(enviar("/unidades","{\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
+        String outra=campo(enviar("/unidades","{\"codigoUnidade\":\"" + UUID.randomUUID().toString().substring(0, 20) + "\",\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
         enviar("/estoques/entradas",movimento(outra,c.produto(),5),c.admin(),200);
         mvc.perform(get("/unidades/"+outra+"/cardapio")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
@@ -244,7 +244,7 @@ class FluxosApiTest {
 
     @Test void produtoSemEstoqueApareceIndisponivelNoCardapio() throws Exception {
         Cenario c=preparar(1,"10.00");
-        String outra=campo(enviar("/unidades","{\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
+        String outra=campo(enviar("/unidades","{\"codigoUnidade\":\"" + UUID.randomUUID().toString().substring(0, 20) + "\",\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
         configurarCardapio(c.admin(),outra,c.produto(),true,200);
         mvc.perform(get("/unidades/"+outra+"/cardapio")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
@@ -254,7 +254,7 @@ class FluxosApiTest {
 
     @Test void desabilitarProdutoImpedeVendaApenasNaUnidadeEscolhida() throws Exception {
         Cenario c=preparar(5,"10.00");
-        String outra=campo(enviar("/unidades","{\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
+        String outra=campo(enviar("/unidades","{\"codigoUnidade\":\"" + UUID.randomUUID().toString().substring(0, 20) + "\",\"nome\":\"Outra\",\"endereco\":\"Rua\"}",c.admin(),201),"id");
         configurarCardapio(c.admin(),outra,c.produto(),true,200);
         enviar("/estoques/entradas",movimento(outra,c.produto(),5),c.admin(),200);
         configurarCardapio(c.admin(),c.unidade(),c.produto(),false,200);
@@ -320,7 +320,7 @@ class FluxosApiTest {
 
     @Test void primeiraEntradaConcorrenteAcumulaSemDuplicar() throws Exception {
         String a=admin();
-        String u=campo(enviar("/unidades","{\"nome\":\"Unidade\",\"endereco\":\"Rua\"}",a,201),"id");
+        String u=campo(enviar("/unidades","{\"codigoUnidade\":\"" + UUID.randomUUID().toString().substring(0, 20) + "\",\"nome\":\"Unidade\",\"endereco\":\"Rua\"}",a,201),"id");
         String p=campo(enviar("/produtos","{\"nome\":\"Produto\",\"descricao\":\"Teste\",\"preco\":10.00}",a,201),"id");
         var req=json.readValue(movimento(u,p,5),com.raizes.raizes_api.api.dto.requisicao.MovimentarEstoqueRequisicao.class);
         ExecutorService pool=Executors.newFixedThreadPool(2);CountDownLatch inicio=new CountDownLatch(1);
@@ -350,10 +350,11 @@ class FluxosApiTest {
 
     void mudarConsentimento(Cenario c, UUID clienteId, boolean consentimento) throws Exception {
         var usuario=usuariosFidelidade.findById(clienteId).orElseThrow();
-        mvc.perform(put("/usuarios/"+clienteId).header("Authorization","Bearer "+c.cliente())
-                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(java.util.Map.of(
-                        "nome",usuario.getNome(),"email",usuario.getEmail(),"consentimentoLgpd",consentimento))))
-                .andExpect(status().isOk());
+        // Prepara o estado da fidelidade: o PUT público preserva o consentimento.
+        usuariosFidelidade.saveAndFlush(new UsuarioEntidade(
+                usuario.getId(), usuario.getNome(), usuario.getEmail(), usuario.getSenhaHash(),
+                usuario.getPerfil(), usuario.isAtivo(), consentimento, usuario.getCriadoEm(),
+                usuario.getUnidadeId()));
     }
 
     @Test void fidelidadeRespeitaConsentimentoNoPagamentoESemCreditoRetroativo() throws Exception {

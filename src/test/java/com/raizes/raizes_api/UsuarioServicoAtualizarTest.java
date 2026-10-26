@@ -23,7 +23,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -48,11 +47,13 @@ class UsuarioServicoAtualizarTest {
         OffsetDateTime criadoEm = OffsetDateTime.parse("2025-01-01T10:00:00Z");
         UsuarioEntidade usuarioAtual = new UsuarioEntidade(usuarioId, "Nome antigo", "antigo@example.com",
                 "senha-hash", PerfilUsuario.GERENTE, false, false, criadoEm);
-        AtualizarUsuarioRequisicao requisicao = requisicao("Nome novo", "novo@example.com", true);
+        AtualizarUsuarioRequisicao requisicao = requisicao("novo@example.com", "NovaSenha123");
         when(usuarioRepositorio.findById(usuarioId)).thenReturn(Optional.of(usuarioAtual));
         when(usuarioRepositorio.existsByEmail("novo@example.com")).thenReturn(false);
         when(usuarioRepositorio.save(any(UsuarioEntidade.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+
+        when(passwordEncoder.encode("NovaSenha123")).thenReturn("nova-senha-hash");
 
         UsuarioResposta resposta = usuarioServico.atualizar(usuarioId, requisicao);
 
@@ -60,14 +61,14 @@ class UsuarioServicoAtualizarTest {
         verify(usuarioRepositorio).save(usuarioCapturado.capture());
         UsuarioEntidade salvo = usuarioCapturado.getValue();
         assertEquals(usuarioId, salvo.getId());
-        assertEquals("Nome novo", resposta.getNome());
+        assertEquals("Nome antigo", resposta.getNome());
         assertEquals("novo@example.com", resposta.getEmail());
-        assertTrue(resposta.isConsentimentoLgpd());
-        assertEquals("senha-hash", salvo.getSenhaHash());
+        assertFalse(resposta.isConsentimentoLgpd());
+        assertEquals("nova-senha-hash", salvo.getSenhaHash());
         assertEquals(PerfilUsuario.GERENTE, salvo.getPerfil());
         assertFalse(salvo.isAtivo());
         assertEquals(criadoEm, salvo.getCriadoEm());
-        verify(passwordEncoder, never()).encode(anyString());
+        verify(passwordEncoder).encode("NovaSenha123");
     }
 
     @Test
@@ -77,7 +78,7 @@ class UsuarioServicoAtualizarTest {
         when(usuarioRepositorio.save(any(UsuarioEntidade.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        usuarioServico.atualizar(usuarioId, requisicao("Ana", "ana@example.com", true));
+        usuarioServico.atualizar(usuarioId, requisicao("ana@example.com", "NovaSenha123"));
 
         verify(usuarioRepositorio, never()).existsByEmail(anyString());
     }
@@ -106,9 +107,10 @@ class UsuarioServicoAtualizarTest {
         verify(usuarioRepositorio, never()).save(any(UsuarioEntidade.class));
     }
 
-    private AtualizarUsuarioRequisicao requisicao(String nome, String email, boolean consentimento) {
+    private AtualizarUsuarioRequisicao requisicao(String email, String senha) {
         AtualizarUsuarioRequisicao requisicao = org.mockito.Mockito.mock(AtualizarUsuarioRequisicao.class);
         when(requisicao.getEmail()).thenReturn(email);
+        when(requisicao.getSenha()).thenReturn(senha);
         return requisicao;
     }
 
